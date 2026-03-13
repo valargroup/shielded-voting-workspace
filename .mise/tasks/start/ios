@@ -15,7 +15,8 @@ fi
 if [ ! -d "$SDK_DIR/LocalPackages" ]; then
     printf '\033[36mInitializing LocalPackages (first time only)...\033[0m\n'
     # Create the SPM wrapper — rebuild-local-ffi.sh will populate the xcframework
-    mkdir -p "$SDK_DIR/LocalPackages"
+    # Create both dirs — rebuild-local-ffi.sh guards on xcframework dir existence
+    mkdir -p "$SDK_DIR/LocalPackages/libzcashlc.xcframework"
     cat > "$SDK_DIR/LocalPackages/Package.swift" << 'EOF'
 // swift-tools-version:5.6
 import PackageDescription
