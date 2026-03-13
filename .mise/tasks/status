@@ -67,5 +67,8 @@ echo "Chain log      ./svoted.log"
 echo "Nullifier data vote-nullifier-pir/nullifiers.{bin,checkpoint}"
 echo "PIR data       vote-nullifier-pir/pir-data/"
 echo "nf-server log  ./nf-serve.log"
+echo "Admin UI log   ./ui.log"
 echo "Admin UI       vote-shielded-vote-generator-ui/"
+echo ""
+echo "Tail all logs: mise run logs"
 printf '\033[0m'

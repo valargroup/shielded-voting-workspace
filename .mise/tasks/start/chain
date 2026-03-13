@@ -22,7 +22,9 @@ fi
 make -C "$DIR/vote-sdk" init
 
 # ── Start svoted ─────────────────────────────────────────────────
-SVOTE_PIR_URL=${SVOTE_PIR_URL:-http://localhost:3000} nohup make -C "$DIR/vote-sdk" start > "$DIR/svoted.log" 2>&1 &
+SVOTE_PIR_URL=${SVOTE_PIR_URL:-http://localhost:3000} \
+SVOTE_LWD_URLS=${SVOTE_LWD_URLS:-https://zec.rocks:443} \
+nohup make -C "$DIR/vote-sdk" start > "$DIR/svoted.log" 2>&1 &
 printf '\033[32mStarted svoted → svoted.log\033[0m\n'
 
 # ── Wait for chain readiness ────────────────────────────────────
