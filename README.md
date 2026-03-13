@@ -4,17 +4,17 @@ Development workspace for Zcash shielded governance voting. Coordinates cross-re
 
 ## Repos
 
-| Repo | What | Branch |
-| --- | --- | --- |
-| `librustzcash` | Wallet DB queries for governance (fork of zcash/librustzcash) | `valargroup/shielded-voting-support` |
-| `librustvoting` | Voting protocol: hotkeys, ZKPs, encryption, PCZT construction | `main` |
-| `voting-circuits` | Halo2 circuits for delegation proofs | `main` |
-| `vote-nullifier-pir` | PIR-private nullifier exclusion | `main` |
-| `vote-sdk` | Voting SDK | `main` |
-| `vote-shielded-vote-generator-ui` | Vote generator UI | `main` |
-| `zcash-swift-wallet-sdk` | Swift SDK with voting FFI (fork of zcash/zcash-swift-wallet-sdk) | `valargroup/governance-tree-state` |
-| `zodl-ios` | iOS wallet app (fork of zodl-inc/zodl-ios) | `greg/adam/voting-store-bg` |
-| `zebra` | Zcash node | `main` |
+| Repo                              | What                                                             | Branch                               |
+| --------------------------------- | ---------------------------------------------------------------- | ------------------------------------ |
+| `librustzcash`                    | Wallet DB queries for governance (fork of zcash/librustzcash)    | `valargroup/shielded-voting-support` |
+| `librustvoting`                   | Voting protocol: hotkeys, ZKPs, encryption, PCZT construction    | `main`                               |
+| `voting-circuits`                 | Halo2 circuits for delegation proofs                             | `main`                               |
+| `vote-nullifier-pir`              | PIR-private nullifier exclusion                                  | `main`                               |
+| `vote-sdk`                        | Voting SDK                                                       | `main`                               |
+| `vote-shielded-vote-generator-ui` | Vote generator UI                                                | `main`                               |
+| `zcash-swift-wallet-sdk`          | Swift SDK with voting FFI (fork of zcash/zcash-swift-wallet-sdk) | `valargroup/governance-tree-state`   |
+| `zodl-ios`                        | iOS wallet app (fork of zodl-inc/zodl-ios)                       | `valargroup/shielded-voting`         |
+| `zebra`                           | Zcash node                                                       | `main`                               |
 
 Repos are standalone clones in gitignored directories — each has its own git history and remotes.
 
