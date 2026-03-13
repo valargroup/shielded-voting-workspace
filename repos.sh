@@ -3,7 +3,7 @@
 # Format: directory|clone_url|default_branch
 REPOS=(
     "librustvoting|git@github.com:valargroup/librustvoting.git|main"
-    "librustzcash|git@github.com:valargroup/librustzcash.git|valargroup/shielded-voting-support"
+    "librustzcash|git@github.com:valargroup/librustzcash.git|shielded-voting-wallet-support"
     "vote-nullifier-pir|https://github.com/valargroup/vote-nullifier-pir.git|main"
     "vote-sdk|https://github.com/valargroup/vote-sdk|main"
     "vote-shielded-vote-generator-ui|https://github.com/valargroup/vote-shielded-vote-generator-ui.git|main"

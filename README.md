@@ -4,16 +4,16 @@ Development workspace for Zcash shielded governance voting. Coordinates cross-re
 
 ## Repos
 
-| Repo                              | What                                                             | Branch                               |
-| --------------------------------- | ---------------------------------------------------------------- | ------------------------------------ |
-| `librustzcash`                    | Wallet DB queries for governance (fork of zcash/librustzcash)    | `valargroup/shielded-voting-support` |
-| `librustvoting`                   | Voting protocol: hotkeys, ZKPs, encryption, PCZT construction    | `main`                               |
-| `voting-circuits`                 | Halo2 circuits for delegation proofs                             | `main`                               |
-| `vote-nullifier-pir`              | PIR-private nullifier exclusion                                  | `main`                               |
-| `vote-sdk`                        | Voting chain daemon + helper server                              | `main`                               |
-| `vote-shielded-vote-generator-ui` | Admin UI for round/proposal management                           | `main`                               |
-| `zcash-swift-wallet-sdk`          | Swift SDK with voting FFI (fork of zcash/zcash-swift-wallet-sdk) | `valargroup/governance-tree-state`   |
-| `zodl-ios`                        | iOS wallet app (fork of zodl-inc/zodl-ios)                       | `valargroup/shielded-voting`         |
+| Repo                              | What                                                             | Branch                             |
+| --------------------------------- | ---------------------------------------------------------------- | ---------------------------------- |
+| `librustzcash`                    | Wallet DB queries for governance (fork of zcash/librustzcash)    | `shielded-voting-wallet-support`   |
+| `librustvoting`                   | Voting protocol: hotkeys, ZKPs, encryption, PCZT construction    | `main`                             |
+| `voting-circuits`                 | Halo2 circuits for delegation proofs                             | `main`                             |
+| `vote-nullifier-pir`              | PIR-private nullifier exclusion                                  | `main`                             |
+| `vote-sdk`                        | Voting chain daemon + helper server                              | `main`                             |
+| `vote-shielded-vote-generator-ui` | Admin UI for round/proposal management                           | `main`                             |
+| `zcash-swift-wallet-sdk`          | Swift SDK with voting FFI (fork of zcash/zcash-swift-wallet-sdk) | `valargroup/governance-tree-state` |
+| `zodl-ios`                        | iOS wallet app (fork of zodl-inc/zodl-ios)                       | `valargroup/shielded-voting`       |
 
 Repos are standalone clones in gitignored directories — each has its own git history and remotes.
 

@@ -1,23 +1,75 @@
 #!/usr/bin/env bash
-#MISE description="Clone missing repos or fetch existing ones"
+#MISE description="Fetch all repos, fast-forward where safe, report what needs manual attention"
 #MISE quiet=true
 set -euo pipefail
 
 DIR="$(cd "$(dirname "$0")/../../.." && pwd)"
 source "$DIR/repos.sh"
 
+manual=()
+
 for entry in "${REPOS[@]}"; do
     IFS='|' read -r dir url branch <<< "$entry"
     repo_dir="$DIR/$dir"
 
-    if [ -d "$repo_dir/.git" ]; then
-        printf '  \033[36m↻\033[0m %-40s fetch\n' "$dir"
-        git -C "$repo_dir" fetch --quiet origin
-    else
-        printf '  \033[32m↓\033[0m %-40s clone → %s\n' "$dir" "$branch"
+    if [ ! -d "$repo_dir/.git" ]; then
+        printf '  \033[32m↓\033[0m \033[1m%-35s\033[0m cloning → %s\n' "$dir" "$branch"
         git clone --quiet -b "$branch" "$url" "$repo_dir"
+        continue
+    fi
+
+    current=$(git -C "$repo_dir" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "detached")
+
+    # Fetch origin (and upstream if configured)
+    git -C "$repo_dir" fetch --quiet origin 2>/dev/null || true
+    if git -C "$repo_dir" remote get-url upstream &>/dev/null; then
+        git -C "$repo_dir" fetch --quiet upstream 2>/dev/null || true
+    fi
+
+    # Check if origin tracks this branch
+    if ! git -C "$repo_dir" rev-parse --verify "origin/$current" &>/dev/null; then
+        printf '  \033[36m·\033[0m \033[1m%-35s\033[0m \033[36m%s\033[0m  no remote tracking branch\n' "$dir" "$current"
+        continue
+    fi
+
+    ahead=$(git -C "$repo_dir" rev-list --count "origin/$current..HEAD" 2>/dev/null || echo "?")
+    behind=$(git -C "$repo_dir" rev-list --count "HEAD..origin/$current" 2>/dev/null || echo "?")
+
+    # Already up to date
+    if [ "$behind" = "0" ]; then
+        if [ "$ahead" = "0" ]; then
+            printf '  \033[32m●\033[0m \033[1m%-35s\033[0m \033[36m%s\033[0m  up to date\n' "$dir" "$current"
+        else
+            printf '  \033[32m●\033[0m \033[1m%-35s\033[0m \033[36m%s\033[0m  \033[32m+%s ahead\033[0m\n' "$dir" "$current" "$ahead"
+        fi
+        continue
+    fi
+
+    # Behind origin — check if we can fast-forward
+    dirty=$(git -C "$repo_dir" status --porcelain 2>/dev/null | head -1)
+
+    if [ -n "$dirty" ]; then
+        printf '  \033[31m✗\033[0m \033[1m%-35s\033[0m \033[36m%s\033[0m  \033[31m%s behind, dirty worktree — stash or commit first\033[0m\n' \
+            "$dir" "$current" "$behind"
+        manual+=("$dir: $behind behind origin/$current but worktree is dirty")
+    elif [ "$ahead" != "0" ]; then
+        printf '  \033[33m!\033[0m \033[1m%-35s\033[0m \033[36m%s\033[0m  \033[33m+%s/-%s diverged — rebase needed\033[0m\n' \
+            "$dir" "$current" "$ahead" "$behind"
+        manual+=("$dir: diverged from origin/$current (+$ahead/-$behind), needs rebase")
+    else
+        # Clean fast-forward: 0 ahead, N behind, clean worktree
+        git -C "$repo_dir" merge --ff-only "origin/$current" --quiet 2>/dev/null
+        printf '  \033[32m↑\033[0m \033[1m%-35s\033[0m \033[36m%s\033[0m  \033[32mfast-forwarded %s commits\033[0m\n' \
+            "$dir" "$current" "$behind"
     fi
 done
 
 echo ""
-printf '\033[32mSync complete.\033[0m All repos present.\n'
+if [ ${#manual[@]} -gt 0 ]; then
+    printf '\033[33mNeeds manual attention:\033[0m\n'
+    for msg in "${manual[@]}"; do
+        printf '  → %s\n' "$msg"
+    done
+else
+    printf '\033[32mAll repos synced.\033[0m\n'
+fi
