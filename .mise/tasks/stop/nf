@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+#MISE description="Stop only nf-server (leave svoted + admin UI running)"
+#MISE quiet=true
+
+if pkill -f 'nf-server.*serve' 2>/dev/null || pkill nf-server 2>/dev/null; then
+    printf '\033[32mStopped nf-server\033[0m\n'
+else
+    echo "nf-server is not running."
+fi

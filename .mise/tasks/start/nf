@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+#MISE description="Bootstrap + start nullifier PIR server"
+#MISE quiet=true
+set -e
+
+DIR="$(cd "$(dirname "$0")/../../.." && pwd)"
+
+if pgrep -f 'nf-server.*serve' > /dev/null 2>&1; then
+    printf '\033[33mAlready running: nf-server\033[0m\n'
+    exit 0
+fi
+
+make -C "$DIR/vote-nullifier-pir" bootstrap
+make -C "$DIR/vote-nullifier-pir" ingest
+make -C "$DIR/vote-nullifier-pir" export-nf
+nohup make -C "$DIR/vote-nullifier-pir" serve > "$DIR/nf-serve.log" 2>&1 &
+printf '\033[32mStarted nf-server → nf-serve.log\033[0m\n'
