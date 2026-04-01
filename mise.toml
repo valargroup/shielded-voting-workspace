@@ -1,5 +1,7 @@
 [tools]
 rust = "stable"
+go = "1.24"
+node = "lts"
 
 # Tasks auto-discover from .mise/tasks/ directory structure.
 # Short aliases (e.g. "start" → "start:all") are defined via #MISE alias in the scripts.
