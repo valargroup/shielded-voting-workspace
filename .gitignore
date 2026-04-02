@@ -7,6 +7,7 @@ vote-shielded-vote-generator-ui/
 voting-circuits/
 zcash-swift-wallet-sdk/
 zebra/
+shielded-vote-book/
 zodl-ios/
 
 # Chain data (was ~/.svoted, now local for sandboxing)

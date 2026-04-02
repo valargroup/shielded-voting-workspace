@@ -10,4 +10,5 @@ REPOS=(
     "voting-circuits|https://github.com/valargroup/voting-circuits.git|main"
     "zcash-swift-wallet-sdk|git@github.com:valargroup/zcash-swift-wallet-sdk.git|shielded-vote"
     "zodl-ios|git@github.com:valargroup/zodl-ios.git|shielded-vote"
+    "shielded-vote-book|https://github.com/valargroup/shielded-vote-book|main"
 )
