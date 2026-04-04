@@ -5,6 +5,7 @@ set -e
 
 DIR="$(cd "$(dirname "$0")/../../.." && pwd)"
 export SVOTED_HOME="$DIR/.svoted"
+export PATH="$HOME/go/bin:$PATH"
 
 write_ios_config() {
     local cfg="$DIR/zodl-ios/secant/Resources/voting-config-local.json"
