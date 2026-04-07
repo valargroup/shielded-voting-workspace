@@ -21,15 +21,18 @@ for entry in "${WIRED[@]}"; do
         continue
     fi
 
-    # Check if already applied
-    flags=$(git -C "$repo_dir" ls-files -v -- "$file" 2>/dev/null)
-    if [[ "$flags" == S* ]]; then
+    if [ ! -f "$patch" ]; then
+        printf '\033[31mError: patch not found: %s\033[0m\n' "$patch"
+        exit 1
+    fi
+
+    if git -C "$repo_dir" apply --reverse --check "$patch" >/dev/null 2>&1; then
+        git -C "$repo_dir" update-index --skip-worktree "$file" 2>/dev/null || true
         printf '  \033[36m●\033[0m %-40s already local\n' "$repo/$file"
         ((skipped++)) || true
         continue
     fi
 
-    # Check for uncommitted changes
     dirty=$(git -C "$repo_dir" diff --name-only -- "$file" 2>/dev/null || true)
     staged=$(git -C "$repo_dir" diff --cached --name-only -- "$file" 2>/dev/null || true)
     if [ -n "$dirty" ] || [ -n "$staged" ]; then
@@ -38,19 +41,18 @@ for entry in "${WIRED[@]}"; do
         exit 1
     fi
 
-    if [ ! -f "$patch" ]; then
-        printf '\033[31mError: patch not found: %s\033[0m\n' "$patch"
+    if ! git -C "$repo_dir" apply --check "$patch" >/dev/null 2>&1; then
+        printf '\033[31mError: %s/%s is not in the expected remote state.\033[0m\n' "$repo" "$file"
+        echo "Run wire:remote first or resolve the file manually."
         exit 1
     fi
 
-    # Apply patch
     git -C "$repo_dir" apply "$patch"
     git -C "$repo_dir" update-index --skip-worktree "$file"
     printf '  \033[32m✓\033[0m %-40s wired local\n' "$repo/$file"
     ((applied++)) || true
 done
 
-# Skip-worktree on lock files
 for entry in "${WIRED_LOCKS[@]}"; do
     repo="${entry%%:*}"
     file="${entry#*:}"
