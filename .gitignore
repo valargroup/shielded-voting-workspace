@@ -10,6 +10,7 @@ zebra/
 shielded-vote-book/
 zodl-ios/
 BigDecimal/
+spendability-pir/
 
 # Chain data (was ~/.svoted, now local for sandboxing)
 .svoted/

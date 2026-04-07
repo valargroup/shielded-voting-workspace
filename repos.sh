@@ -12,4 +12,5 @@ REPOS=(
     "BigDecimal|https://github.com/valargroup/BigDecimal.git|fix/uncomment-platforms"
     "zodl-ios|git@github.com:valargroup/zodl-ios.git|shielded-vote"
     "shielded-vote-book|https://github.com/valargroup/shielded-vote-book|main"
+    "spendability-pir|https://github.com/valargroup/spendability-pir|main"
 )
