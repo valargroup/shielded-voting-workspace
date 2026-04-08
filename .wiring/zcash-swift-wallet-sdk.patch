@@ -1,8 +1,8 @@
 diff --git a/Cargo.toml b/Cargo.toml
-index 679e8a5a..326778d0 100644
+index 5747361e..2394529f 100644
 --- a/Cargo.toml
 +++ b/Cargo.toml
-@@ -78,8 +78,8 @@ rust_decimal = { version = "1", default-features = false, features = ["c-repr"]
+@@ -78,16 +78,16 @@ rust_decimal = { version = "1", default-features = false, features = ["c-repr"]
  xz2 = { version = "0.1", features = ["static"] }
  
  # Voting
@@ -13,7 +13,6 @@ index 679e8a5a..326778d0 100644
  zcash_keys = { version = "0.12", features = ["orchard"] }
  incrementalmerkletree = { version = "0.8", default-features = false }
  
-@@ -86,9 +86,9 @@ incrementalmerkletree = { version = "0.8", default-features = false }
  # Spendability PIR
  hex = "0.4"
 -spend-client = { git = "https://github.com/valargroup/spendability-pir.git", rev = "3b33092a2988cfdd28edd65837b9ad03b0003fd1" }
@@ -25,8 +24,7 @@ index 679e8a5a..326778d0 100644
  
  [dev-dependencies]
  zcash_client_sqlite = { version = "0.19", features = ["test-dependencies"] }
-
-@@ -111,14 +111,22 @@ lto = true
+@@ -111,14 +111,17 @@ lto = true
  # librustzcash crates: governance extensions branch with PCZT/key
  #   visibility changes needed for voting delegation flows.
  [patch.crates-io]
@@ -55,8 +53,3 @@ index 679e8a5a..326778d0 100644
 +
 +[patch."https://github.com/valargroup/voting-circuits.git"]
 +voting-circuits = { path = "../voting-circuits/voting-circuits" }
-+
-+[patch."https://github.com/valargroup/vote-nullifier-pir.git"]
-+imt-tree = { path = "../vote-nullifier-pir/imt-tree" }
-+pir-client = { path = "../vote-nullifier-pir/pir/client" }
-+pir-types = { path = "../vote-nullifier-pir/pir/types" }

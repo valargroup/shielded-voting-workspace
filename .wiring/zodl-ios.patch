@@ -1,5 +1,5 @@
 diff --git a/modules/Package.swift b/modules/Package.swift
-index d5adc114..78302131 100644
+index be255ffc..78302131 100644
 --- a/modules/Package.swift
 +++ b/modules/Package.swift
 @@ -105,12 +105,12 @@ let package = Package(

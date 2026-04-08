@@ -1,8 +1,8 @@
 diff --git a/Cargo.toml b/Cargo.toml
-index 86786c64..86019168 100644
+index 86786c64..a75961e8 100644
 --- a/Cargo.toml
 +++ b/Cargo.toml
-@@ -9,17 +9,17 @@ resolver = "2"
+@@ -9,17 +9,13 @@ resolver = "2"
  # All crate patches live here (workspace-level).
  # Individual member Cargo.tomls use crates-io version strings;
  # Cargo resolves them from these overrides.
@@ -26,9 +26,5 @@ index 86786c64..86019168 100644
 -zcash_keys        = { git = "https://github.com/valargroup/librustzcash.git", branch = "valargroup/pczt-governance-extensions-0.11" }
 -zcash_primitives  = { git = "https://github.com/valargroup/librustzcash.git", branch = "valargroup/pczt-governance-extensions-0.11" }
 -zcash_protocol    = { git = "https://github.com/valargroup/librustzcash.git", branch = "valargroup/pczt-governance-extensions-0.11" }
-+[patch."https://github.com/valargroup/vote-nullifier-pir.git"]
-+imt-tree   = { path = "../vote-nullifier-pir/imt-tree" }
-+pir-client = { path = "../vote-nullifier-pir/pir/client" }
-+
 +[patch."https://github.com/valargroup/voting-circuits.git"]
 +voting-circuits = { path = "../voting-circuits/voting-circuits" }
