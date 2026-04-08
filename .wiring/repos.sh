@@ -8,6 +8,7 @@ WIRED=(
     "vote-sdk:circuits/Cargo.toml"
     "zcash-swift-wallet-sdk:Cargo.toml"
     "zodl-ios:modules/Package.swift"
+    "zodl-ios:vendor/zcash-swift-payment-uri/Package.swift"
 )
 
 WIRED_LOCKS=(
