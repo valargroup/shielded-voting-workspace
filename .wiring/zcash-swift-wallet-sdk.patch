@@ -6,10 +6,10 @@ index 2c60d1f7..b2b057cc 100644
  xz2 = { version = "0.1", features = ["static"] }
  
  # Voting
--librustvoting = { git = "https://github.com/valargroup/librustvoting.git", rev = "126c11d354c28de257d75558f0d88bcee0f2e0d0" }
+-zcash_voting = { git = "https://github.com/valargroup/zcash_voting.git", rev = "126c11d354c28de257d75558f0d88bcee0f2e0d0" }
 -voting-circuits = { git = "https://github.com/valargroup/voting-circuits.git" }
 +# Local overrides: use sibling repo paths.
-+librustvoting = { path = "../librustvoting/librustvoting" }
++zcash_voting = { path = "../zcash_voting/zcash_voting" }
 +voting-circuits = { path = "../voting-circuits/voting-circuits" }
  zcash_keys = { version = "0.12", features = ["orchard"] }
  incrementalmerkletree = { version = "0.8", default-features = false }
@@ -18,7 +18,7 @@ index 2c60d1f7..b2b057cc 100644
  [profile.release]
  lto = true
  
--# Patches to align librustvoting's dependencies with the SDK's.
+-# Patches to align zcash_voting's dependencies with the SDK's.
 -# orchard: voting-circuits fork (upstream 0.11 + pub visibility for
 -#   constants/spec + shared_primitives gadget for voting ZKPs).
 -# librustzcash crates: governance extensions branch with PCZT/key

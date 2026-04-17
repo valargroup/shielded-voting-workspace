@@ -3,7 +3,7 @@
 # Each entry: REPO_DIR:FILE_PATH (relative to repo root)
 
 WIRED=(
-    "librustvoting:Cargo.toml"
+    "zcash_voting:Cargo.toml"
     "voting-circuits:voting-circuits/Cargo.toml"
     "vote-sdk:circuits/Cargo.toml"
     "zcash-swift-wallet-sdk:Cargo.toml"
@@ -11,7 +11,7 @@ WIRED=(
 )
 
 WIRED_LOCKS=(
-    "librustvoting:Cargo.lock"
+    "zcash_voting:Cargo.lock"
     "voting-circuits:voting-circuits/Cargo.lock"
     "zcash-swift-wallet-sdk:Cargo.lock"
     "zodl-ios:modules/Package.resolved"

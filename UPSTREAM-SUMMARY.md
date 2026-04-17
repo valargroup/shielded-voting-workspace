@@ -25,10 +25,10 @@ zodl-ios (Swift/TCA)
        ├─ VotingRustBackend.swift (wraps C FFI)
        └─ libzcashlc.a (Rust staticlib)
             ├─ librustzcash  ← wallet DB queries
-            └─ librustvoting ← voting DB, ZKP proofs, encryption
+            └─ zcash_voting ← voting DB, ZKP proofs, encryption
 ```
 
-librustvoting never touches the wallet DB. The SDK FFI queries notes/witnesses via librustzcash and passes them to librustvoting as arguments. This is the key separation of concerns — librustzcash owns the wallet domain, librustvoting owns the voting domain, and the SDK wires them together.
+zcash_voting never touches the wallet DB. The SDK FFI queries notes/witnesses via librustzcash and passes them to zcash_voting as arguments. This is the key separation of concerns — librustzcash owns the wallet domain, zcash_voting owns the voting domain, and the SDK wires them together.
 
 ---
 
@@ -47,7 +47,7 @@ No new traits, no modifications to existing APIs.
 
 ---
 
-## 2. librustvoting — [valargroup/librustvoting](https://github.com/valargroup/librustvoting)
+## 2. zcash_voting — [valargroup/zcash_voting](https://github.com/valargroup/zcash_voting)
 
 **New repo**, no upstream counterpart. Three workspace crates: core library, vote commitment tree, tree sync client.
 
@@ -66,7 +66,7 @@ Dependencies: [voting-circuits](https://github.com/valargroup/voting-circuits) (
 
 The glue layer. 52 `extern "C"` FFI functions in `rust/src/voting.rs` + Swift wrappers (`VotingRustBackend.swift`, `VotingTypes.swift`).
 
-Four FFI functions do wallet↔voting plumbing (open `WalletDb`, query notes/witnesses via librustzcash, convert to librustvoting types). The remaining ~48 are thin pass-throughs to librustvoting. Complex types cross the boundary via JSON serde; encrypted share secrets are stripped at the FFI boundary.
+Four FFI functions do wallet↔voting plumbing (open `WalletDb`, query notes/witnesses via librustzcash, convert to zcash_voting types). The remaining ~48 are thin pass-throughs to zcash_voting. Complex types cross the boundary via JSON serde; encrypted share secrets are stripped at the FFI boundary.
 
 One new SDK API: `getTreeState(height:)` on `Synchronizer` for commitment tree witness generation.
 
@@ -99,6 +99,6 @@ Tests: ~715 lines covering delegation flow, Keystone pipeline, 6 crash recovery 
 ## Merge order
 
 1. **librustzcash** — independent, no voting deps
-2. **librustvoting** — independent repo, cargo patches should align with merged librustzcash
+2. **zcash_voting** — independent repo, cargo patches should align with merged librustzcash
 3. **zcash-swift-wallet-sdk** — depends on 1 + 2
 4. **zodl-ios** — depends on 3

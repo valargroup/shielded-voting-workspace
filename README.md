@@ -7,7 +7,7 @@ Development workspace for Zcash shielded governance voting. Coordinates cross-re
 | Repo                              | What                                                             | Branch                             |
 | --------------------------------- | ---------------------------------------------------------------- | ---------------------------------- |
 | `librustzcash`                    | Wallet DB queries for governance (fork of zcash/librustzcash)    | `shielded-voting-wallet-support`   |
-| `librustvoting`                   | Voting protocol: hotkeys, ZKPs, encryption, PCZT construction    | `main`                             |
+| `zcash_voting`                    | Voting protocol: hotkeys, ZKPs, encryption, PCZT construction    | `main`                             |
 | `voting-circuits`                 | Halo2 circuits for delegation proofs                             | `main`                             |
 | `vote-nullifier-pir`              | PIR-private nullifier exclusion                                  | `main`                             |
 | `vote-sdk`                        | Voting chain daemon + helper server                              | `main`                             |
@@ -109,7 +109,7 @@ zodl-ios (Swift/TCA)
        ├─ VotingRustBackend.swift (wraps C FFI)
        └─ libzcashlc.a (Rust staticlib)
             ├─ librustzcash     ← wallet DB queries
-            ├─ librustvoting    ← voting protocol, ZKPs, encryption
+            ├─ zcash_voting     ← voting protocol, ZKPs, encryption
             │    └─ voting-circuits ← Halo2 proof circuits
             └─ vote-nullifier-pir  ← PIR nullifier exclusion
 

@@ -16,7 +16,7 @@ if [ -z "$name" ]; then
     echo ""
     echo "Examples:"
     echo "  mise run git:branch voting-rewire"
-    echo "  mise run git:branch voting-rewire librustzcash librustvoting"
+    echo "  mise run git:branch voting-rewire librustzcash zcash_voting"
     exit 1
 fi
 shift
