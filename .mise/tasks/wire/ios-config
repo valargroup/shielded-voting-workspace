@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+#MISE description="Write voting-config-local.json so zodl-ios talks to local services"
+#MISE quiet=true
+set -euo pipefail
+
+DIR="$(cd "$(dirname "$0")/../../.." && pwd)"
+RESOURCES="$DIR/zodl-ios/secant/Resources"
+SOURCE="$DIR/token-holder-voting-config/voting-config.json"
+TARGET="$RESOURCES/voting-config-local.json"
+
+if [ ! -d "$RESOURCES" ]; then
+    printf '\033[33mSkip: %s not found\033[0m\n' "$RESOURCES"
+    exit 0
+fi
+
+if [ ! -f "$SOURCE" ]; then
+    printf '\033[31mError: %s not found — clone token-holder-voting-config first\033[0m\n' "$SOURCE"
+    exit 1
+fi
+
+# Bonjour hostname resolves on both simulator (loopback) and on-device (mDNS over LAN).
+HOST="$(scutil --get LocalHostName).local"
+
+# Swap only the endpoint URLs; preserve every other required field
+# (vote_round_id, snapshot_height, proposals, supported_versions, …).
+jq --arg vote "http://${HOST}:1318" \
+   --arg pir  "http://${HOST}:3000" \
+   '.vote_servers  = [{"url": $vote, "label": "Local"}] |
+    .pir_endpoints = [{"url": $pir,  "label": "Local"}]' \
+   "$SOURCE" > "$TARGET"
+
+printf '  \033[32m✓\033[0m %-40s pointing at %s (vote :1318, pir :3000)\n' \
+    "zodl-ios/secant/Resources/voting-config-local.json" "$HOST"

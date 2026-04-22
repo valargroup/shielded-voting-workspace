@@ -11,7 +11,7 @@ index a75298fa..03f4462f 100644
 -voting-circuits = { git = "https://github.com/valargroup/voting-circuits.git", features = ["share-reveal"] }
 -imt-tree = { git = "https://github.com/valargroup/vote-nullifier-pir.git" }
 +vote-commitment-tree = { path = "../../zcash_voting/vote-commitment-tree" }
-+orchard = { path = "../../voting-circuits/orchard" }
++orchard = { path = "../../voting-circuits/orchard", package = "valar-orchard" }
 +voting-circuits = { path = "../../voting-circuits/voting-circuits", features = ["share-reveal"] }
 +imt-tree = { path = "../../vote-nullifier-pir/imt-tree" }
  incrementalmerkletree = "0.8"

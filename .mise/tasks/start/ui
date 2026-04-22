@@ -26,10 +26,10 @@ if [ ! -f "$UI_ENV" ] && [ -f "$UI_DIR/.env.example" ]; then
     printf '\033[32mCreated admin UI .env from .env.example\033[0m\n'
 fi
 
-# Inject VM_PRIVKEY from vote-sdk into admin UI .env.
+# Inject first VM_PRIVKEYS entry from vote-sdk into admin UI .env.
 VM_KEY=""
 if [ -f "$DIR/vote-sdk/.env" ]; then
-    VM_KEY=$(grep '^VM_PRIVKEY=' "$DIR/vote-sdk/.env" | cut -d= -f2)
+    VM_KEY=$(grep '^VM_PRIVKEYS=' "$DIR/vote-sdk/.env" | cut -d= -f2- | cut -d, -f1 | tr -d '[:space:]')
 fi
 if [ -n "$VM_KEY" ] && [ -f "$UI_ENV" ]; then
     EXISTING=$(grep '^VITE_VM_PRIVKEY=' "$UI_ENV" 2>/dev/null | cut -d= -f2)
@@ -40,7 +40,7 @@ if [ -n "$VM_KEY" ] && [ -f "$UI_ENV" ]; then
         else
             echo "VITE_VM_PRIVKEY=$VM_KEY" >> "$UI_ENV"
         fi
-        printf '\033[32mSynced VM_PRIVKEY into admin UI .env\033[0m\n'
+        printf '\033[32mSynced VM_PRIVKEYS[0] into admin UI .env\033[0m\n'
     fi
 fi
 

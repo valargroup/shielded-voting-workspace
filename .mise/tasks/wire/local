@@ -66,4 +66,8 @@ if [ "$applied" -gt 0 ]; then
 else
     printf '\033[36mAll files already wired local.\033[0m\n'
 fi
+
+# Generate iOS local voting config (debug-only override; no-op if zodl-ios absent).
+mise run wire:ios-config
+
 printf 'Run \033[1mmise run wire:remote\033[0m to restore remote references.\n'
