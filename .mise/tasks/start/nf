@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#MISE description="Bootstrap + start nullifier PIR server"
+#MISE description="Start nullifier PIR server and self-bootstrap"
 #MISE quiet=true
 set -e
 
@@ -12,9 +12,6 @@ if [ -f "$PID_DIR/nf.pid" ] && kill -0 "$(cat "$PID_DIR/nf.pid")" 2>/dev/null; t
     exit 0
 fi
 
-make -C "$DIR/vote-nullifier-pir" bootstrap
-make -C "$DIR/vote-nullifier-pir" ingest
-make -C "$DIR/vote-nullifier-pir" export-nf
 make -C "$DIR/vote-nullifier-pir" serve > "$DIR/nf-serve.log" 2>&1 &
 echo $! > "$PID_DIR/nf.pid"
 printf '\033[32mStarted nf-server → nf-serve.log\033[0m\n'

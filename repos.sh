@@ -12,4 +12,6 @@ REPOS=(
     "shielded-vote-book|https://github.com/valargroup/shielded-vote-book|main"
     "token-holder-voting-config|https://github.com/valargroup/token-holder-voting-config.git|main"
     "vote-infrastructure|https://github.com/valargroup/vote-infrastructure.git|main"
+    "ypir|git@github.com:valargroup/ypir.git|valar/artifact"
+    "spiral-rs|git@github.com:valargroup/spiral-rs.git|valar/avoid-avx512"
 )
