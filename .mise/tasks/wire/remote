@@ -82,14 +82,20 @@ if [ -f "$IOS_LOCAL_CFG" ]; then
 fi
 
 # Stash LocalPackages so Package.swift falls back to the release binary.
-# Keeping it stashed (rather than deleting) preserves the FFI build for wire:local.
+# Scoped to the active state so state switching can't restore a build that
+# was compiled against a different state's source.
 FFI_LIVE="$DIR/zcash-swift-wallet-sdk/LocalPackages"
-FFI_STASH="$DIR/zcash-swift-wallet-sdk/.LocalPackages.stashed"
+FFI_STASH="$DIR/zcash-swift-wallet-sdk/.LocalPackages.stashed-${STATE//[^a-zA-Z0-9]/_}"
+# Drop any pre-per-state stash (migration from the old single-stash layout).
+LEGACY_STASH="$DIR/zcash-swift-wallet-sdk/.LocalPackages.stashed"
+if [ -d "$LEGACY_STASH" ]; then
+    rm -rf "$LEGACY_STASH"
+fi
 if [ -d "$FFI_LIVE" ]; then
     rm -rf "$FFI_STASH"
     mv "$FFI_LIVE" "$FFI_STASH"
-    printf '  \033[32m●\033[0m %-40s stashed (release binary will be used)\n' \
-        "zcash-swift-wallet-sdk/LocalPackages"
+    printf '  \033[32m●\033[0m %-40s stashed for state %s\n' \
+        "zcash-swift-wallet-sdk/LocalPackages" "$STATE"
 fi
 
 echo ""
