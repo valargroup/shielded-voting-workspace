@@ -1,5 +1,5 @@
 diff --git a/Cargo.toml b/Cargo.toml
-index 97c7c920..00000000 100644
+index 7fdb691b..6bbddb29 100644
 --- a/Cargo.toml
 +++ b/Cargo.toml
 @@ -5,3 +5,16 @@ members = [

@@ -5,11 +5,13 @@ set -euo pipefail
 
 DIR="$(cd "$(dirname "$0")/../../.." && pwd)"
 source "$DIR/repos.sh"
-source "$DIR/.wiring/repos.sh"
+
+STATE="$(wiring_active_state "$DIR")"
+wiring_load_state "$STATE"
 
 # Guard: refuse to push while any repo is wired local
 wired_repos=()
-for entry in "${WIRED[@]}"; do
+for entry in "${WIRED[@]+"${WIRED[@]}"}"; do
     repo="${entry%%:*}"
     file="${entry#*:}"
     repo_dir="$DIR/$repo"
@@ -33,7 +35,7 @@ fi
 pushed=0
 
 for entry in "${REPOS[@]}"; do
-    IFS='|' read -r dir url branch <<< "$entry"
+    IFS='|' read -r dir url <<< "$entry"
     repo_dir="$DIR/$dir"
 
     if [ ! -d "$repo_dir/.git" ]; then

@@ -27,7 +27,7 @@ if [ $# -gt 0 ]; then
 else
     targets=()
     for entry in "${REPOS[@]}"; do
-        IFS='|' read -r dir _ _ <<< "$entry"
+        IFS='|' read -r dir _ <<< "$entry"
         targets+=("$dir")
     done
 fi

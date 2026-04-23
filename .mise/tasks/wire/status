@@ -1,19 +1,52 @@
 #!/usr/bin/env bash
-#MISE description="Show current wiring state (local vs remote)"
+#MISE description="Show current wiring state (local vs remote) and branch drift"
 #MISE quiet=true
 set -euo pipefail
 
 DIR="$(cd "$(dirname "$0")/../../.." && pwd)"
-source "$DIR/.wiring/repos.sh"
+source "$DIR/repos.sh"
+
+STATE="$(wiring_active_state "$DIR")"
+wiring_load_state "$STATE"
 
 printf '\033[1mWiring status\033[0m\n'
 printf '═════════════\n\n'
+
+printf '  Active state: \033[1m%s\033[0m   (switch with: mise run wire:state <name>)\n' "$STATE"
+printf '  Available:    %s\n\n' "${STATES[*]}"
+
+# ─── Branch drift per repo ──────────────────────────────
+printf '\033[1mBranches\033[0m\n'
+drift=0
+for entry in "${BRANCHES[@]+"${BRANCHES[@]}"}"; do
+    repo="${entry%%:*}"
+    want="${entry#*:}"
+    repo_dir="$DIR/$repo"
+
+    if [ ! -d "$repo_dir/.git" ]; then
+        printf '  \033[31m○\033[0m %-35s \033[31mnot cloned\033[0m (want %s)\n' "$repo" "$want"
+        ((drift++)) || true
+        continue
+    fi
+
+    have=$(git -C "$repo_dir" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "detached")
+    if [ "$have" = "$want" ]; then
+        printf '  \033[32m●\033[0m %-35s \033[36m%s\033[0m\n' "$repo" "$have"
+    else
+        printf '  \033[33m●\033[0m %-35s \033[36m%s\033[0m \033[33m≠ %s\033[0m\n' "$repo" "$have" "$want"
+        ((drift++)) || true
+    fi
+done
+
+# ─── Wired files ────────────────────────────────────────
+echo ""
+printf '\033[1mWired files\033[0m\n'
 
 local_count=0
 remote_count=0
 missing=0
 
-for entry in "${WIRED[@]}"; do
+for entry in "${WIRED[@]+"${WIRED[@]}"}"; do
     repo="${entry%%:*}"
     file="${entry#*:}"
     repo_dir="$DIR/$repo"
@@ -38,7 +71,12 @@ echo ""
 if [ "$local_count" -gt 0 ] && [ "$remote_count" -gt 0 ]; then
     printf '  \033[33mMixed state!\033[0m Run wire:local or wire:remote to normalize.\n'
 elif [ "$local_count" -gt 0 ]; then
-    printf '  All files wired for \033[36mlocal development\033[0m.\n'
+    printf '  Files wired for \033[36mlocal development\033[0m.\n'
 else
-    printf '  All files wired for \033[32mremote/fork\033[0m references.\n'
+    printf '  Files wired for \033[32mremote/fork\033[0m references.\n'
+fi
+
+if [ "$drift" -gt 0 ]; then
+    printf '  \033[33m%d repo(s) on a branch that does not match state "%s".\033[0m\n' "$drift" "$STATE"
+    printf '  Run \033[1mmise run wire:state %s\033[0m to realign.\n' "$STATE"
 fi

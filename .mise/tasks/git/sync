@@ -6,15 +6,25 @@ set -euo pipefail
 DIR="$(cd "$(dirname "$0")/../../.." && pwd)"
 source "$DIR/repos.sh"
 
+STATE="$(wiring_active_state "$DIR")"
+wiring_load_state "$STATE"
+
+printf 'State: \033[1m%s\033[0m (clones use this state'\''s branches)\n\n' "$STATE"
+
 manual=()
 
 for entry in "${REPOS[@]}"; do
-    IFS='|' read -r dir url branch <<< "$entry"
+    IFS='|' read -r dir url <<< "$entry"
     repo_dir="$DIR/$dir"
 
+    # Initial clone uses the active state's branch for this repo.
     if [ ! -d "$repo_dir/.git" ]; then
-        printf '  \033[32m↓\033[0m \033[1m%-35s\033[0m cloning → %s\n' "$dir" "$branch"
-        git clone --quiet -b "$branch" "$url" "$repo_dir"
+        if branch="$(wiring_branch_for_repo "$dir")"; then
+            printf '  \033[32m↓\033[0m \033[1m%-35s\033[0m cloning → %s\n' "$dir" "$branch"
+            git clone --quiet -b "$branch" "$url" "$repo_dir"
+        else
+            printf '  \033[33m⊘\033[0m \033[1m%-35s\033[0m no branch in state \033[36m%s\033[0m — skipped\n' "$dir" "$STATE"
+        fi
         continue
     fi
 

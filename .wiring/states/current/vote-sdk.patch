@@ -1,5 +1,5 @@
 diff --git a/circuits/Cargo.toml b/circuits/Cargo.toml
-index a75298fa..03f4462f 100644
+index e762cad6..7e269fa6 100644
 --- a/circuits/Cargo.toml
 +++ b/circuits/Cargo.toml
 @@ -13,10 +13,10 @@ pasta_curves = "0.5"

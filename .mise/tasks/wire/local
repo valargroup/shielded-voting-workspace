@@ -4,16 +4,31 @@
 set -euo pipefail
 
 DIR="$(cd "$(dirname "$0")/../../.." && pwd)"
-source "$DIR/.wiring/repos.sh"
+source "$DIR/repos.sh"
+
+STATE="$(wiring_active_state "$DIR")"
+wiring_load_state "$STATE"
+STATE_DIR="$DIR/.wiring/states/$STATE"
+
+printf 'State: \033[1m%s\033[0m\n' "$STATE"
 
 applied=0
 skipped=0
 
-for entry in "${WIRED[@]}"; do
+# Unique repos in WIRED, preserving declaration order.
+repos_seen=()
+for entry in "${WIRED[@]+"${WIRED[@]}"}"; do
     repo="${entry%%:*}"
-    file="${entry#*:}"
+    found=false
+    for r in "${repos_seen[@]+"${repos_seen[@]}"}"; do
+        [ "$r" = "$repo" ] && found=true && break
+    done
+    [ "$found" = false ] && repos_seen+=("$repo")
+done
+
+for repo in "${repos_seen[@]+"${repos_seen[@]}"}"; do
     repo_dir="$DIR/$repo"
-    patch="$DIR/.wiring/$repo.patch"
+    patch="$STATE_DIR/$repo.patch"
 
     if [ ! -d "$repo_dir/.git" ]; then
         printf '\033[33mSkip %s — not a git repo\033[0m\n' "$repo"
@@ -21,21 +36,41 @@ for entry in "${WIRED[@]}"; do
         continue
     fi
 
-    # Check if already applied
-    flags=$(git -C "$repo_dir" ls-files -v -- "$file" 2>/dev/null)
-    if [[ "$flags" == S* ]]; then
-        printf '  \033[36m●\033[0m %-40s already local\n' "$repo/$file"
-        ((skipped++)) || true
-        continue
-    fi
+    # Collect this repo's wired files.
+    files=()
+    for entry in "${WIRED[@]+"${WIRED[@]}"}"; do
+        e_repo="${entry%%:*}"
+        e_file="${entry#*:}"
+        [ "$e_repo" = "$repo" ] && files+=("$e_file")
+    done
 
-    # Check for uncommitted changes
-    dirty=$(git -C "$repo_dir" diff --name-only -- "$file" 2>/dev/null || true)
-    staged=$(git -C "$repo_dir" diff --cached --name-only -- "$file" 2>/dev/null || true)
-    if [ -n "$dirty" ] || [ -n "$staged" ]; then
-        printf '\033[31mError: uncommitted changes in %s/%s\033[0m\n' "$repo" "$file"
+    # Per-file state: either all already wired, or all must be clean to apply.
+    all_wired=true
+    any_dirty=false
+    for f in "${files[@]}"; do
+        flags=$(git -C "$repo_dir" ls-files -v -- "$f" 2>/dev/null)
+        if [[ "$flags" != S* ]]; then
+            all_wired=false
+            dirty=$(git -C "$repo_dir" diff --name-only -- "$f" 2>/dev/null || true)
+            staged=$(git -C "$repo_dir" diff --cached --name-only -- "$f" 2>/dev/null || true)
+            if [ -n "$dirty" ] || [ -n "$staged" ]; then
+                any_dirty=true
+                printf '\033[31mError: uncommitted changes in %s/%s\033[0m\n' "$repo" "$f"
+            fi
+        fi
+    done
+
+    if [ "$any_dirty" = true ]; then
         echo "Commit or stash them before applying local wiring."
         exit 1
+    fi
+
+    if [ "$all_wired" = true ]; then
+        for f in "${files[@]}"; do
+            printf '  \033[36m●\033[0m %-40s already local\n' "$repo/$f"
+            ((skipped++)) || true
+        done
+        continue
     fi
 
     if [ ! -f "$patch" ]; then
@@ -43,15 +78,17 @@ for entry in "${WIRED[@]}"; do
         exit 1
     fi
 
-    # Apply patch
     git -C "$repo_dir" apply "$patch"
-    git -C "$repo_dir" update-index --skip-worktree "$file"
-    printf '  \033[32m✓\033[0m %-40s wired local\n' "$repo/$file"
-    ((applied++)) || true
+
+    for f in "${files[@]}"; do
+        git -C "$repo_dir" update-index --skip-worktree "$f"
+        printf '  \033[32m✓\033[0m %-40s wired local\n' "$repo/$f"
+        ((applied++)) || true
+    done
 done
 
 # Skip-worktree on lock files
-for entry in "${WIRED_LOCKS[@]}"; do
+for entry in "${WIRED_LOCKS[@]+"${WIRED_LOCKS[@]}"}"; do
     repo="${entry%%:*}"
     file="${entry#*:}"
     repo_dir="$DIR/$repo"
@@ -65,6 +102,23 @@ if [ "$applied" -gt 0 ]; then
     printf '\033[32mLocal wiring applied.\033[0m (%d patched, %d skipped)\n' "$applied" "$skipped"
 else
     printf '\033[36mAll files already wired local.\033[0m\n'
+fi
+
+# Restore LocalPackages from stash (counterpart to wire:remote). If a live
+# LocalPackages already exists (user ran init-local-ffi while wired remote),
+# prefer it and drop the stash.
+FFI_LIVE="$DIR/zcash-swift-wallet-sdk/LocalPackages"
+FFI_STASH="$DIR/zcash-swift-wallet-sdk/.LocalPackages.stashed"
+if [ -d "$FFI_STASH" ]; then
+    if [ -d "$FFI_LIVE" ]; then
+        rm -rf "$FFI_STASH"
+        printf '  \033[36m●\033[0m %-40s already present, stash discarded\n' \
+            "zcash-swift-wallet-sdk/LocalPackages"
+    else
+        mv "$FFI_STASH" "$FFI_LIVE"
+        printf '  \033[32m✓\033[0m %-40s restored from stash\n' \
+            "zcash-swift-wallet-sdk/LocalPackages"
+    fi
 fi
 
 # Generate iOS local voting config (debug-only override; no-op if zodl-ios absent).

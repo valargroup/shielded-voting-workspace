@@ -4,11 +4,19 @@
 set -euo pipefail
 
 DIR="$(cd "$(dirname "$0")/../../.." && pwd)"
-source "$DIR/.wiring/repos.sh"
+source "$DIR/repos.sh"
 
-# Verify we're wired local
+STATE="$(wiring_active_state "$DIR")"
+wiring_load_state "$STATE"
+STATE_DIR="$DIR/.wiring/states/$STATE"
+
+printf 'State: \033[1m%s\033[0m\n' "$STATE"
+
+mkdir -p "$STATE_DIR"
+
+# Require at least one wired file so we don't capture "just remote state" by mistake.
 any_wired=false
-for entry in "${WIRED[@]}"; do
+for entry in "${WIRED[@]+"${WIRED[@]}"}"; do
     repo="${entry%%:*}"
     file="${entry#*:}"
     repo_dir="$DIR/$repo"
@@ -28,33 +36,49 @@ if [ "$any_wired" = false ]; then
     exit 1
 fi
 
+# Unique repos in WIRED, preserving declaration order.
+repos_seen=()
+for entry in "${WIRED[@]+"${WIRED[@]}"}"; do
+    repo="${entry%%:*}"
+    found=false
+    for r in "${repos_seen[@]+"${repos_seen[@]}"}"; do
+        [ "$r" = "$repo" ] && found=true && break
+    done
+    [ "$found" = false ] && repos_seen+=("$repo")
+done
+
 updated=0
 
-for entry in "${WIRED[@]}"; do
-    repo="${entry%%:*}"
-    file="${entry#*:}"
+for repo in "${repos_seen[@]+"${repos_seen[@]}"}"; do
     repo_dir="$DIR/$repo"
-    patch="$DIR/.wiring/$repo.patch"
+    patch="$STATE_DIR/$repo.patch"
 
     if [ ! -d "$repo_dir/.git" ]; then
         continue
     fi
 
-    # Check if skip-worktree was set before we clear it
-    flags=$(git -C "$repo_dir" ls-files -v -- "$file" 2>/dev/null)
-    was_skipped=false
-    if [[ "$flags" == S* ]]; then
-        was_skipped=true
-        git -C "$repo_dir" update-index --no-skip-worktree "$file" 2>/dev/null || true
-    fi
+    # Collect this repo's files and temporarily clear skip-worktree on any that have it
+    # so the diff sees the working-tree version.
+    files=()
+    restored=()
+    for entry in "${WIRED[@]+"${WIRED[@]}"}"; do
+        e_repo="${entry%%:*}"
+        e_file="${entry#*:}"
+        if [ "$e_repo" = "$repo" ]; then
+            files+=("$e_file")
+            flags=$(git -C "$repo_dir" ls-files -v -- "$e_file" 2>/dev/null)
+            if [[ "$flags" == S* ]]; then
+                restored+=("$e_file")
+                git -C "$repo_dir" update-index --no-skip-worktree "$e_file" 2>/dev/null || true
+            fi
+        fi
+    done
 
-    # Capture the diff
-    diff_output=$(git -C "$repo_dir" diff -- "$file" 2>/dev/null || true)
+    diff_output=$(git -C "$repo_dir" diff -- "${files[@]}" 2>/dev/null || true)
 
-    # Restore skip-worktree only if it was set before
-    if [ "$was_skipped" = true ]; then
-        git -C "$repo_dir" update-index --skip-worktree "$file" 2>/dev/null || true
-    fi
+    for f in "${restored[@]+"${restored[@]}"}"; do
+        git -C "$repo_dir" update-index --skip-worktree "$f" 2>/dev/null || true
+    done
 
     if [ -n "$diff_output" ]; then
         echo "$diff_output" > "$patch"
@@ -62,7 +86,7 @@ for entry in "${WIRED[@]}"; do
         printf '  \033[32m✓\033[0m %-35s %s (%s lines)\n' "$repo" "$(basename "$patch")" "$lines"
         ((updated++)) || true
     else
-        printf '  \033[36m●\033[0m %-35s no diff (file matches committed)\n' "$repo"
+        printf '  \033[36m●\033[0m %-35s no diff (files match committed)\n' "$repo"
     fi
 done
 

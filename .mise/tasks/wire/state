@@ -1,0 +1,136 @@
+#!/usr/bin/env bash
+#MISE description="Show or switch the active workspace state (branch combination)"
+#MISE quiet=true
+set -euo pipefail
+
+DIR="$(cd "$(dirname "$0")/../../.." && pwd)"
+source "$DIR/repos.sh"
+
+TARGET="${1:-}"
+
+# ───────── No arg: show active state + drift ──────────
+if [ -z "$TARGET" ]; then
+    STATE="$(wiring_active_state "$DIR")"
+    wiring_load_state "$STATE"
+
+    printf 'Active state: \033[1m%s\033[0m\n' "$STATE"
+    printf 'Available:    %s\n\n' "${STATES[*]}"
+
+    for entry in "${BRANCHES[@]+"${BRANCHES[@]}"}"; do
+        repo="${entry%%:*}"
+        want="${entry#*:}"
+        repo_dir="$DIR/$repo"
+
+        if [ ! -d "$repo_dir/.git" ]; then
+            printf '  \033[31m○\033[0m %-35s \033[31mnot cloned\033[0m (want %s)\n' "$repo" "$want"
+            continue
+        fi
+
+        have=$(git -C "$repo_dir" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "detached")
+        if [ "$have" = "$want" ]; then
+            printf '  \033[32m●\033[0m %-35s \033[36m%s\033[0m\n' "$repo" "$have"
+        else
+            printf '  \033[33m●\033[0m %-35s \033[36m%s\033[0m \033[33m≠ %s\033[0m\n' "$repo" "$have" "$want"
+        fi
+    done
+
+    echo ""
+    printf 'Switch with: \033[1mmise run wire:state <name>\033[0m\n'
+    exit 0
+fi
+
+# ───────── Switch state ───────────────────────────────
+if ! wiring_state_exists "$TARGET"; then
+    printf '\033[31mUnknown state: %s\033[0m\n' "$TARGET"
+    printf 'Available: %s\n' "${STATES[*]}"
+    exit 1
+fi
+
+CURRENT="$(wiring_active_state "$DIR")"
+if [ "$CURRENT" = "$TARGET" ]; then
+    printf 'Already on \033[1m%s\033[0m. Nothing to do.\n' "$TARGET"
+    exit 0
+fi
+
+# Preflight: no repo may be wired-local, and every repo must be clean
+# (no uncommitted changes on any tracked file). We explicitly load the
+# *current* state's WIRED list because those are the files with
+# skip-worktree set right now.
+wiring_load_state "$CURRENT"
+
+problems=()
+
+for entry in "${WIRED[@]+"${WIRED[@]}"}"; do
+    repo="${entry%%:*}"
+    file="${entry#*:}"
+    repo_dir="$DIR/$repo"
+    [ -d "$repo_dir/.git" ] || continue
+    flags=$(git -C "$repo_dir" ls-files -v -- "$file" 2>/dev/null)
+    if [[ "$flags" == S* ]]; then
+        problems+=("$repo/$file is wired local — run wire:remote first")
+    fi
+done
+
+# Now load target state's branches so we know which repos are in scope.
+wiring_load_state "$TARGET"
+
+for entry in "${BRANCHES[@]+"${BRANCHES[@]}"}"; do
+    repo="${entry%%:*}"
+    repo_dir="$DIR/$repo"
+    [ -d "$repo_dir/.git" ] || continue
+    dirty=$(git -C "$repo_dir" status --porcelain 2>/dev/null | head -5)
+    if [ -n "$dirty" ]; then
+        problems+=("$repo has uncommitted changes")
+    fi
+done
+
+if [ ${#problems[@]} -gt 0 ]; then
+    printf '\033[31mCannot switch to %s:\033[0m\n' "$TARGET"
+    for msg in "${problems[@]}"; do
+        printf '  • %s\n' "$msg"
+    done
+    exit 1
+fi
+
+printf 'Switching \033[1m%s\033[0m → \033[1m%s\033[0m\n\n' "$CURRENT" "$TARGET"
+
+switched=0
+skipped=0
+for entry in "${BRANCHES[@]+"${BRANCHES[@]}"}"; do
+    repo="${entry%%:*}"
+    want="${entry#*:}"
+    repo_dir="$DIR/$repo"
+
+    if [ ! -d "$repo_dir/.git" ]; then
+        printf '  \033[33m○\033[0m %-35s not cloned — skipped\n' "$repo"
+        ((skipped++)) || true
+        continue
+    fi
+
+    have=$(git -C "$repo_dir" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "detached")
+    if [ "$have" = "$want" ]; then
+        printf '  \033[36m●\033[0m %-35s \033[36m%s\033[0m (already)\n' "$repo" "$want"
+        continue
+    fi
+
+    # Branch must exist locally. If not, try to fetch it.
+    if ! git -C "$repo_dir" rev-parse --verify "$want" &>/dev/null; then
+        if git -C "$repo_dir" rev-parse --verify "origin/$want" &>/dev/null; then
+            git -C "$repo_dir" branch --track "$want" "origin/$want" >/dev/null 2>&1 || true
+        else
+            printf '  \033[31m✗\033[0m %-35s branch %s not found locally or on origin\n' "$repo" "$want"
+            exit 1
+        fi
+    fi
+
+    git -C "$repo_dir" checkout --quiet "$want"
+    printf '  \033[32m✓\033[0m %-35s \033[36m%s\033[0m → \033[36m%s\033[0m\n' "$repo" "$have" "$want"
+    ((switched++)) || true
+done
+
+echo "$TARGET" > "$DIR/.wiring/current-state"
+
+echo ""
+printf '\033[32mActive state: %s\033[0m (%d switched, %d already on branch)\n' \
+    "$TARGET" "$switched" "$skipped"
+printf 'Run \033[1mmise run wire:local\033[0m to apply path overrides.\n'

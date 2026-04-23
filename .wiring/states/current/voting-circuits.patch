@@ -1,8 +1,8 @@
 diff --git a/voting-circuits/Cargo.toml b/voting-circuits/Cargo.toml
-index 0e3aea4..341583f 100644
+index 717f653..c831bdd 100644
 --- a/voting-circuits/Cargo.toml
 +++ b/voting-circuits/Cargo.toml
-@@ -19,7 +19,7 @@ lazy_static = "1"
+@@ -22,7 +22,7 @@ lazy_static = "1"
  sinsemilla = "0.1"
  
  [dev-dependencies]

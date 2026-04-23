@@ -26,3 +26,6 @@ ui.log
 # IDE / OS
 .DS_Store
 *.swp
+
+# Wiring: active state is per-checkout, not committed
+.wiring/current-state
