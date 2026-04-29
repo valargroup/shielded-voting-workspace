@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+#MISE description="Build, install, and launch the Android debug app on the named emulator"
+#MISE quiet=true
+set -euo pipefail
+
+source "$(cd "$(dirname "$0")/../../.." && pwd)/.mise/lib/android-common.sh"
+
+serial="$(android_start_emulator)"
+
+if [ ! -d "$ANDROID_APP_DIR/.git" ]; then
+    android_fail "zodl-android not cloned. Run: mise run git:sync"
+fi
+
+printf '\033[36mBuilding Android app:\033[0m %s\n' "$ANDROID_GRADLE_TASK"
+(cd "$ANDROID_APP_DIR" && ./gradlew "$ANDROID_GRADLE_TASK")
+
+apk_path="$(android_find_built_apk)"
+[ -n "$apk_path" ] || android_fail "Built APK not found under $ANDROID_APP_DIR/app/build/outputs/apk"
+
+printf '\033[36mInstalling APK:\033[0m %s\n' "$apk_path"
+adb -s "$serial" install -r "$apk_path" >/dev/null
+
+activity="$(adb -s "$serial" shell cmd package resolve-activity --brief "$ANDROID_APP_PACKAGE" | tail -n 1 | tr -d '\r')"
+[ -n "$activity" ] || android_fail "Could not resolve launcher activity for $ANDROID_APP_PACKAGE"
+
+printf '\033[36mLaunching Android app:\033[0m %s\n' "$ANDROID_APP_PACKAGE"
+adb -s "$serial" shell am start -n "$activity" >/dev/null
+
+printf '\033[32mAndroid app launched.\033[0m %s on %s\n' "$ANDROID_APP_PACKAGE" "$serial"

@@ -5,9 +5,11 @@ orchard/
 vote-nullifier-pir/
 vote-sdk/
 voting-circuits/
+zcash-android-wallet-sdk/
 zcash-swift-wallet-sdk/
 zebra/
 shielded-vote-book/
+zodl-android/
 zodl-ios/
 keystone3-firmware/
 token-holder-voting-config/
@@ -24,6 +26,7 @@ cosmos-sdk-v0.53.5-fast-path/
 svoted.log
 nf-serve.log
 ui.log
+android-emulator.log
 
 # PID files
 .pids/

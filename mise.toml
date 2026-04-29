@@ -13,6 +13,8 @@ node = "lts"
 #   start:nf       Bootstrap + start nullifier PIR server
 #   start:ui       Start admin UI dev server
 #   start:ios      Build xcframework for simulator + open Xcode
+#   android:emu    Boot the Android emulator outside Android Studio
+#   android:run    Build, install, and launch the Android debug app
 #   stop           Stop all services
 #   stop:chain     Stop only svoted
 #   stop:nf        Stop only nf-server

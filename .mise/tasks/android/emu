@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+#MISE description="Boot the Android emulator outside Android Studio"
+#MISE quiet=true
+set -euo pipefail
+
+source "$(cd "$(dirname "$0")/../../.." && pwd)/.mise/lib/android-common.sh"
+
+serial="$(android_start_emulator)"
+printf 'Ready: %s (%s)\n' "$ANDROID_AVD_NAME" "$serial"
