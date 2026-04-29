@@ -47,10 +47,6 @@ if ! wiring_state_exists "$TARGET"; then
 fi
 
 CURRENT="$(wiring_active_state "$DIR")"
-if [ "$CURRENT" = "$TARGET" ]; then
-    printf 'Already on \033[1m%s\033[0m. Nothing to do.\n' "$TARGET"
-    exit 0
-fi
 
 # Preflight: no repo may be wired-local, and every repo must be clean
 # (no uncommitted changes on any tracked file). We explicitly load the
@@ -92,10 +88,15 @@ if [ ${#problems[@]} -gt 0 ]; then
     exit 1
 fi
 
-printf 'Switching \033[1m%s\033[0m → \033[1m%s\033[0m\n\n' "$CURRENT" "$TARGET"
+if [ "$CURRENT" = "$TARGET" ]; then
+    printf 'Realigning branches for active state \033[1m%s\033[0m\n\n' "$TARGET"
+else
+    printf 'Switching \033[1m%s\033[0m → \033[1m%s\033[0m\n\n' "$CURRENT" "$TARGET"
+fi
 
 switched=0
-skipped=0
+already_on_branch=0
+not_cloned=0
 for entry in "${BRANCHES[@]+"${BRANCHES[@]}"}"; do
     repo="${entry%%:*}"
     want="${entry#*:}"
@@ -103,13 +104,14 @@ for entry in "${BRANCHES[@]+"${BRANCHES[@]}"}"; do
 
     if ! wiring_repo_exists "$repo_dir"; then
         printf '  \033[33m○\033[0m %-35s not cloned — skipped\n' "$repo"
-        ((skipped++)) || true
+        ((not_cloned++)) || true
         continue
     fi
 
     have=$(git -C "$repo_dir" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "detached")
     if [ "$have" = "$want" ]; then
         printf '  \033[36m●\033[0m %-35s \033[36m%s\033[0m (already)\n' "$repo" "$want"
+        ((already_on_branch++)) || true
         continue
     fi
 
@@ -131,6 +133,6 @@ done
 echo "$TARGET" > "$DIR/.wiring/current-state"
 
 echo ""
-printf '\033[32mActive state: %s\033[0m (%d switched, %d already on branch)\n' \
-    "$TARGET" "$switched" "$skipped"
+printf '\033[32mActive state: %s\033[0m (%d switched, %d already on branch, %d not cloned)\n' \
+    "$TARGET" "$switched" "$already_on_branch" "$not_cloned"
 printf 'Run \033[1mmise run wire:local\033[0m to apply path overrides.\n'
