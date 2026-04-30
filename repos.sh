@@ -27,7 +27,6 @@ REPOS=(
     "vote-infrastructure|https://github.com/valargroup/vote-infrastructure.git"
     "ypir|git@github.com:valargroup/ypir.git"
     "spiral-rs|git@github.com:valargroup/spiral-rs.git"
-    "cosmos-sdk-v0.53.5|https://github.com/valargroup/cosmos-sdk.git"
 )
 
 # ─── States ──────────────────────────────────────────────
@@ -52,13 +51,10 @@ BRANCHES_current=(
     "vote-infrastructure:main"
     "ypir:valar/artifact"
     "spiral-rs:valar/avoid-avx512"
-    "cosmos-sdk-v0.53.5:valar/v0.53.5"
 )
 WIRED_current=(
     "zcash_voting:Cargo.toml"
     "voting-circuits:voting-circuits/Cargo.toml"
-    "vote-sdk:go.mod"
-    "vote-sdk:go.sum"
     "vote-sdk:circuits/Cargo.toml"
     "vote-sdk:e2e-tests/Cargo.toml"
     "zcash-swift-wallet-sdk:Cargo.toml"
