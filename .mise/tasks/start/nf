@@ -27,9 +27,7 @@ fi
 # Stale tracking — clean up before we start fresh.
 rm -f "$PID_FILE"
 
-make -C "$DIR/vote-nullifier-pir" bootstrap
-make -C "$DIR/vote-nullifier-pir" ingest
-make -C "$DIR/vote-nullifier-pir" export-nf
+make -C "$DIR/vote-nullifier-pir" sync
 make -C "$DIR/vote-nullifier-pir" serve > "$DIR/nf-serve.log" 2>&1 &
 MAKE_PID=$!
 
