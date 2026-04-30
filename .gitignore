@@ -17,7 +17,6 @@ vote-infrastructure/
 ypir/
 spiral-rs/
 cosmos-sdk-v0.53.5/
-cosmos-sdk-v0.53.5-fast-path/
 
 # Chain data (was ~/.svoted, now local for sandboxing)
 .svoted/

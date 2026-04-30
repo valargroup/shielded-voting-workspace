@@ -23,7 +23,7 @@ diff --git a/go.mod b/go.mod
  	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
  )
 +
-+replace github.com/cosmos/cosmos-sdk => ../cosmos-sdk-v0.53.5-fast-path
++replace github.com/cosmos/cosmos-sdk => ../cosmos-sdk-v0.53.5
 diff --git a/go.sum b/go.sum
 --- a/go.sum
 +++ b/go.sum
