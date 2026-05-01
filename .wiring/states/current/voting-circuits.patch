@@ -17,6 +17,6 @@ index 3612e31..14e4d24 100644
  [dev-dependencies]
 -imt-tree = "0.1"
 +imt-tree = { path = "../../vote-nullifier-pir/imt-tree" }
- criterion = "0.4"
+ criterion = "0.8"
  rand = "0.8"
  incrementalmerkletree = "0.8.1"

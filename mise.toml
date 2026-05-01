@@ -13,6 +13,7 @@ node = "lts"
 #   start:nf       Start nullifier PIR server (CDN bootstrap by default)
 #   start:ui       Start admin UI dev server
 #   start:ios      Build xcframework for simulator + open Xcode
+#   reset:ios      Wipe Xcode/SwiftPM caches when package resolution wedges
 #   android:emu    Boot the Android emulator outside Android Studio
 #   android:run    Build, install, and launch the Android debug app
 #   stop           Stop all services

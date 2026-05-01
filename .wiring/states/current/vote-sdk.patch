@@ -8,7 +8,7 @@ index 553d829b..71be93e1 100644
  reddsa = { version = "0.5", default-features = false }
 -vote-commitment-tree = "0.1.1"
 -orchard = { version = "=0.13.1", features = ["unstable-voting-circuits"] }
--voting-circuits = { version = "0.3.1", features = ["share-reveal"] }
+-voting-circuits = { version = "0.4.0", features = ["share-reveal"] }
 -imt-tree = { git = "https://github.com/valargroup/vote-nullifier-pir.git" }
 +vote-commitment-tree = { path = "../../zcash_voting/vote-commitment-tree" }
 +orchard = { path = "../../orchard" }
@@ -26,10 +26,10 @@ index ba7e8860..91f63b46 100644
  shielded-vote-circuits = { path = "../circuits" }
  
 -orchard = { version = "=0.13.1", features = ["unstable-voting-circuits"] }
--voting-circuits = { version = "0.3.1", features = ["share-reveal"] }
+-voting-circuits = { version = "0.4.0", features = ["share-reveal"] }
 -vote-commitment-tree = "0.1.1"
 -vote-commitment-tree-client = "0.1.1"
--zcash_voting = "0.1.1"
+-zcash_voting = "0.2.0"
 +orchard = { path = "../../orchard" }
 +voting-circuits = { path = "../../voting-circuits/voting-circuits" }
 +vote-commitment-tree = { path = "../../zcash_voting/vote-commitment-tree" }

@@ -27,6 +27,7 @@ svoted.log
 nf-serve.log
 ui.log
 android-emulator.log
+auth.log
 
 # PID files
 .pids/
