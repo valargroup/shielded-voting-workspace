@@ -415,8 +415,8 @@ case "$MODE" in
         CONFIG_BASE_URL="${SVOTE_ANDROID_CONFIG_BASE_URL:-https://$CONFIG_HOST:$CONFIG_PORT}"
         DYNAMIC_URL="${SVOTE_ANDROID_DYNAMIC_CONFIG_URL:-$CONFIG_BASE_URL/dynamic-voting-config.json}"
         STATIC_URL="${SVOTE_ANDROID_STATIC_CONFIG_URL:-$CONFIG_BASE_URL/static-voting-config.json}"
-        VOTE_URL="${SVOTE_ANDROID_VOTE_URL:-https://$CHAIN_HOST:$CONFIG_PORT}"
-        PIR_URL="${SVOTE_ANDROID_PIR_URL:-https://$PIR_HOST:$CONFIG_PORT}"
+        VOTE_URL="${SVOTE_ANDROID_VOTE_URL:-http://$HOST:$CHAIN_PORT}"
+        PIR_URL="${SVOTE_ANDROID_PIR_URL:-http://$HOST:$PIR_PORT}"
 
         jq --arg dynamic "$DYNAMIC_URL" \
             '.dynamic_config_url = $dynamic' \
