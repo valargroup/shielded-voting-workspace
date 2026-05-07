@@ -7,6 +7,7 @@ SVOTED_HOME="${SVOTED_HOME:-$DIR/.svoted}"
 PID_DIR="$DIR/.pids"
 NF_PORT="${SVOTE_PIR_PORT:-${PORT:-3000}}"
 CHAIN_PORT="${SVOTE_CHAIN_PORT:-1317}"
+CONFIG_PORT="${SVOTE_CONFIG_PORT:-8443}"
 
 json_field() {
     python3 -c 'import json,sys; print(json.load(sys.stdin).get(sys.argv[1],"unknown"))' "$1" 2>/dev/null || echo "unknown"
@@ -68,6 +69,15 @@ else
     printf '\033[31m✗ not exported\033[0m\n'
 fi
 
+# ── Local voting config ─────────────────────────────────────────────────
+printf "config-proxy  "
+if lsof -tnP -iTCP:$CONFIG_PORT -sTCP:LISTEN >/dev/null 2>&1; then
+    CONFIG_PID=$(lsof -tnP -iTCP:$CONFIG_PORT -sTCP:LISTEN 2>/dev/null | head -1 || echo "?")
+    printf '\033[32m● ready\033[0m     port %s (pid %s)\n' "$CONFIG_PORT" "$CONFIG_PID"
+else
+    printf '\033[31m○ stopped\033[0m\n'
+fi
+
 # ── Admin UI ─────────────────────────────────────────────────────
 printf "admin-ui       "
 if curl -sf --max-time 2 "http://localhost:$CHAIN_PORT/" 2>/dev/null | grep -q "<div id=\"root\""; then
@@ -86,7 +96,9 @@ echo "Chain log      ./svoted.log"
 echo "Nullifier data vote-nullifier-pir/pir-data/nullifiers.{bin,checkpoint}"
 echo "PIR data       vote-nullifier-pir/pir-data/"
 echo "nf-server log  ./nf-serve.log"
+echo "Config log     ./config-server.log"
 echo "Admin UI       http://localhost:$CHAIN_PORT/"
+echo "Android config https://config.10-0-2-2.sslip.io:$CONFIG_PORT/static-voting-config.json"
 echo ""
 echo "Tail all logs: mise run logs"
 printf '\033[0m'

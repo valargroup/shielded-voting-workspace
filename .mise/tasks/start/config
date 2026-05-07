@@ -1,0 +1,71 @@
+#!/usr/bin/env bash
+#MISE description="Start local HTTPS voting config proxy"
+#MISE quiet=true
+set -euo pipefail
+
+DIR="$(cd "$(dirname "$0")/../../.." && pwd)"
+PID_DIR="$DIR/.pids"
+PID_FILE="$PID_DIR/config.pid"
+PORT="${SVOTE_CONFIG_PORT:-8443}"
+CONFIG_DIR="${SVOTE_CONFIG_DIR:-$DIR/.wiring/generated/voting-config}"
+CADDY_DIR="$DIR/.wiring/generated/caddy"
+CADDYFILE="$CADDY_DIR/Caddyfile"
+LOG_FILE="$DIR/config-server.log"
+
+mkdir -p "$PID_DIR" "$CONFIG_DIR" "$CADDY_DIR"
+
+if [ ! -f "$CONFIG_DIR/static-voting-config.json" ] ||
+    [ ! -f "$CONFIG_DIR/dynamic-voting-config.json" ] ||
+    [ ! -f "$CADDYFILE" ]; then
+    printf '\033[33mLocal voting config proxy is missing; generating it first.\033[0m\n'
+    SVOTE_ANDROID_SKIP_ADB=1 mise run wire:android-config local
+fi
+
+command -v caddy >/dev/null 2>&1 || {
+    printf '\033[31mCaddy is required for local Android HTTPS wiring.\033[0m\n'
+    printf 'Install it with: mise install caddy\n'
+    exit 1
+}
+
+LISTENING_PID="$(lsof -tnP -iTCP:"$PORT" -sTCP:LISTEN 2>/dev/null | head -1 || true)"
+if [ -n "$LISTENING_PID" ]; then
+    if [ -f "$PID_FILE" ] && [ "$(cat "$PID_FILE")" = "$LISTENING_PID" ]; then
+        kill "$LISTENING_PID" 2>/dev/null || true
+        for _ in $(seq 1 20); do
+            if ! lsof -tnP -iTCP:"$PORT" -sTCP:LISTEN >/dev/null 2>&1; then
+                break
+            fi
+            sleep 0.25
+        done
+    else
+        printf '\033[31mPort %s is already held by pid %s.\033[0m\n' "$PORT" "$LISTENING_PID"
+        exit 1
+    fi
+fi
+
+rm -f "$PID_FILE"
+
+XDG_DATA_HOME="$CADDY_DIR/data" \
+XDG_CONFIG_HOME="$CADDY_DIR/config" \
+    caddy run --config "$CADDYFILE" --adapter caddyfile > "$LOG_FILE" 2>&1 &
+SERVER_PID=$!
+
+printf 'Waiting for config proxy to bind :%s...' "$PORT"
+for _ in $(seq 1 40); do
+    if lsof -tnP -iTCP:"$PORT" -sTCP:LISTEN >/dev/null 2>&1; then
+        echo "$SERVER_PID" > "$PID_FILE"
+        printf ' \033[32mstarted\033[0m (pid %s) → config-server.log\n' "$SERVER_PID"
+        exit 0
+    fi
+    if ! kill -0 "$SERVER_PID" 2>/dev/null; then
+        printf ' \033[31mexited before bind\033[0m\n'
+        tail -40 "$LOG_FILE"
+        exit 1
+    fi
+    printf '.'
+    sleep 0.25
+done
+
+printf ' \033[31mTIMEOUT\033[0m\n'
+tail -40 "$LOG_FILE"
+exit 1

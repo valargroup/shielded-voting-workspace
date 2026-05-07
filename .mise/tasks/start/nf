@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#MISE description="Start nullifier PIR server (CDN bootstrap by default)"
+#MISE description="Start nullifier PIR server"
 #MISE quiet=true
 set -e
 
@@ -14,6 +14,13 @@ mkdir -p "$PID_DIR"
 
 health_status() {
     python3 -c 'import json,sys; print(json.load(sys.stdin).get("status","unknown"))' 2>/dev/null || echo "unknown"
+}
+
+has_prestaged_pir_data() {
+    [ -s "$PIR_DATA_DIR/pir_root.json" ] &&
+        [ -s "$PIR_DATA_DIR/tier0.bin" ] &&
+        [ -s "$PIR_DATA_DIR/tier1.bin" ] &&
+        [ -s "$PIR_DATA_DIR/tier2.bin" ]
 }
 
 # Truth source is the port, not the PID file — survive orphaned processes
@@ -44,10 +51,24 @@ case "${SVOTE_PIR_START_SYNC:-}" in
         make -C "$NF_DIR" sync
         ;;
     *)
-        echo "Skipping local nullifier sync/export; serve will bootstrap tiers from CDN."
+        echo "Skipping local nullifier sync/export."
         echo "Set SVOTE_PIR_START_SYNC=1 to rebuild local pir-data before serving."
         ;;
 esac
+
+if [ "${SVOTE_PIR_VOTING_CONFIG_URL+x}" != "x" ]; then
+    if has_prestaged_pir_data; then
+        export SVOTE_PIR_VOTING_CONFIG_URL=""
+        echo "Using pre-staged pir-data; startup CDN bootstrap disabled."
+        echo "Set SVOTE_PIR_VOTING_CONFIG_URL=... to force bootstrap discovery."
+    else
+        echo "No pre-staged pir-data found; nf-server will use its bootstrap defaults."
+    fi
+elif [ -z "$SVOTE_PIR_VOTING_CONFIG_URL" ]; then
+    echo "SVOTE_PIR_VOTING_CONFIG_URL is empty; using pre-staged pir-data only."
+else
+    echo "Using SVOTE_PIR_VOTING_CONFIG_URL=$SVOTE_PIR_VOTING_CONFIG_URL"
+fi
 
 cd "$NF_DIR" && cargo build -p nf-server --release --features serve
 

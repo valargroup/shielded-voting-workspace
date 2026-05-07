@@ -25,6 +25,7 @@ cosmos-sdk-v0.53.5/
 # Service logs
 svoted.log
 nf-serve.log
+config-server.log
 ui.log
 android-emulator.log
 auth.log
@@ -41,3 +42,4 @@ auth.log
 
 # Wiring: active state is per-checkout, not committed
 .wiring/current-state
+.wiring/generated/

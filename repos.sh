@@ -59,6 +59,7 @@ WIRED_current=(
     "voting-circuits:voting-circuits/Cargo.toml"
     "vote-sdk:circuits/Cargo.toml"
     "vote-sdk:e2e-tests/Cargo.toml"
+    "zodl-android:gradle.properties"
     "zcash-swift-wallet-sdk:Cargo.toml"
     "zodl-ios:secant.xcodeproj/project.pbxproj"
     "vote-nullifier-pir:Cargo.toml"

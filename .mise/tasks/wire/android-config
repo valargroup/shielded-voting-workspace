@@ -1,0 +1,452 @@
+#!/usr/bin/env bash
+#MISE description="Switch Android debug voting config between local and remote"
+#MISE quiet=true
+set -euo pipefail
+
+DIR="$(cd "$(dirname "$0")/../../.." && pwd)"
+MODE="${1:-${SVOTE_ANDROID_CONFIG:-local}}"
+CONFIG_DIR="${SVOTE_CONFIG_DIR:-$DIR/.wiring/generated/voting-config}"
+STATIC_SOURCE="$DIR/token-holder-voting-config/static-voting-config.json"
+DYNAMIC_SOURCE="$DIR/token-holder-voting-config/dynamic-voting-config.json"
+CONFIG_PORT="${SVOTE_CONFIG_PORT:-8443}"
+CHAIN_PORT="${SVOTE_CHAIN_PORT:-1317}"
+PIR_PORT="${SVOTE_PIR_PORT:-${PORT:-3000}}"
+ANDROID_APP_PACKAGE="${ANDROID_APP_PACKAGE:-co.electriccoin.zcash.foss.debug}"
+CADDY_DIR="$DIR/.wiring/generated/caddy"
+CADDYFILE="$CADDY_DIR/Caddyfile"
+
+is_false() {
+    case "${1:-}" in
+        0|false|FALSE|no|NO|off|OFF)
+            return 0
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+android_host() {
+    case "${SVOTE_ANDROID_HOST:-emulator}" in
+        emulator|"")
+            printf '%s\n' "10.0.2.2"
+            ;;
+        localhost)
+            printf '%s\n' "localhost"
+            ;;
+        lan)
+            local iface host
+            iface="$(route -n get default 2>/dev/null | sed -n 's/^ *interface: //p' | head -1)"
+            host="$(ipconfig getifaddr "$iface" 2>/dev/null || true)"
+            if [ -z "$host" ]; then
+                host="$(ifconfig "$iface" 2>/dev/null | awk '/inet / && $2 != "127.0.0.1" { print $2; exit }')"
+            fi
+            [ -n "$host" ] || host="127.0.0.1"
+            printf '%s\n' "$host"
+            ;;
+        *)
+            printf '%s\n' "$SVOTE_ANDROID_HOST"
+            ;;
+    esac
+}
+
+sslip_label() {
+    printf '%s\n' "$1" | tr '.' '-'
+}
+
+service_hostname() {
+    local service="$1"
+    local host="$2"
+
+    if [[ "$host" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        printf '%s.%s.sslip.io\n' "$service" "$(sslip_label "$host")"
+    else
+        printf '%s.%s\n' "$service" "$host"
+    fi
+}
+
+write_caddyfile() {
+    local config_host="$1"
+    local chain_host="$2"
+    local pir_host="$3"
+
+    mkdir -p "$CADDY_DIR"
+    cat > "$CADDYFILE" <<EOF
+{
+    admin off
+    local_certs
+    auto_https disable_redirects
+}
+
+https://$config_host:$CONFIG_PORT {
+    tls internal
+    root * "$CONFIG_DIR"
+    file_server
+}
+
+https://$chain_host:$CONFIG_PORT {
+    tls internal
+    reverse_proxy 127.0.0.1:$CHAIN_PORT
+}
+
+https://$pir_host:$CONFIG_PORT {
+    tls internal
+    reverse_proxy 127.0.0.1:$PIR_PORT
+}
+EOF
+}
+
+adb_serial() {
+    if [ -n "${ANDROID_SERIAL:-}" ] && adb -s "$ANDROID_SERIAL" get-state >/dev/null 2>&1; then
+        printf '%s\n' "$ANDROID_SERIAL"
+        return 0
+    fi
+
+    local serial_file="$DIR/.pids/android-emulator.serial"
+    if [ -f "$serial_file" ]; then
+        local serial
+        serial="$(cat "$serial_file")"
+        if [ -n "$serial" ] && adb -s "$serial" get-state >/dev/null 2>&1; then
+            printf '%s\n' "$serial"
+            return 0
+        fi
+    fi
+
+    local devices
+    devices="$(adb devices | awk 'NR > 1 && $2 == "device" { print $1 }')"
+    if [ "$(printf '%s\n' "$devices" | sed '/^$/d' | wc -l | tr -d ' ')" = "1" ]; then
+        printf '%s\n' "$devices"
+        return 0
+    fi
+
+    return 1
+}
+
+app_installed() {
+    local serial="$1"
+    adb -s "$serial" shell pm path "$ANDROID_APP_PACKAGE" >/dev/null 2>&1
+}
+
+caddy_root_ca() {
+    find "$CADDY_DIR/data" -path '*/pki/authorities/local/root.crt' -print -quit 2>/dev/null
+}
+
+install_android_ca_with_root() {
+    local serial="$1"
+    local cert="$2"
+
+    command -v openssl >/dev/null 2>&1 || {
+        printf '  \033[33m-\033[0m Android HTTPS trust: openssl is required for adb-root CA install\n'
+        return 0
+    }
+
+    local hash
+    hash="$(openssl x509 -inform PEM -subject_hash_old -in "$cert" -noout | head -1)"
+    if [ -z "$hash" ]; then
+        printf '  \033[33m-\033[0m Android HTTPS trust: could not derive CA subject hash from %s\n' "$cert"
+        return 0
+    fi
+
+    if ! adb -s "$serial" root >/dev/null 2>&1; then
+        printf '  \033[33m-\033[0m Android HTTPS trust: adb root is not available on %s\n' "$serial"
+        return 0
+    fi
+    adb -s "$serial" wait-for-device >/dev/null
+
+    if [ "$(adb -s "$serial" shell whoami 2>/dev/null | tr -d '\r')" != "root" ]; then
+        printf '  \033[33m-\033[0m Android HTTPS trust: %s did not restart adbd as root\n' "$serial"
+        return 0
+    fi
+
+    local device_tmp="/data/local/tmp/$hash.0"
+    local device_cert="/data/misc/user/0/cacerts-added/$hash.0"
+    adb -s "$serial" shell mkdir -p /data/misc/user/0/cacerts-added
+    adb -s "$serial" push "$cert" "$device_tmp" >/dev/null 2>&1
+    adb -s "$serial" shell mv "$device_tmp" "$device_cert"
+    adb -s "$serial" shell chown system:system "$device_cert"
+    adb -s "$serial" shell chmod 0644 "$device_cert"
+    adb -s "$serial" shell restorecon -R /data/misc/user/0/cacerts-added >/dev/null 2>&1 || true
+    printf '  \033[32m✓\033[0m Android HTTPS trust: installed Caddy root CA into user store on %s\n' "$serial"
+}
+
+maybe_prepare_android_ca() {
+    local serial="$1"
+
+    if is_false "${SVOTE_ANDROID_TRUST_CADDY_CA:-1}"; then
+        return 0
+    fi
+
+    local cert
+    cert="$(caddy_root_ca || true)"
+    if [ -z "$cert" ]; then
+        printf '  \033[33m-\033[0m Android HTTPS trust not prepared: Caddy root CA not found yet\n'
+        return 0
+    fi
+
+    case "${SVOTE_ANDROID_CA_INSTALL_MODE:-hint}" in
+        root|adb-root)
+            install_android_ca_with_root "$serial" "$cert"
+            ;;
+        prompt)
+            local device_cert="/sdcard/Download/svote-caddy-root-ca.crt"
+            adb -s "$serial" push "$cert" "$device_cert" >/dev/null 2>&1 || {
+                printf '  \033[33m-\033[0m Android HTTPS trust: failed to push Caddy root CA to %s\n' "$serial"
+                return 0
+            }
+            if adb -s "$serial" shell am start \
+                -a android.intent.action.VIEW \
+                -t application/x-x509-ca-cert \
+                -d "file://$device_cert" >/dev/null 2>&1; then
+                printf '  \033[33m-\033[0m Android HTTPS trust: approve the Shielded Vote Dev CA prompt on %s\n' "$serial"
+            else
+                printf '  \033[33m-\033[0m Android HTTPS trust: install %s as a user CA on %s\n' "$cert" "$serial"
+            fi
+            ;;
+        hint|*)
+            printf '  \033[33m-\033[0m Android HTTPS trust: debug app trusts user CAs; install once if needed: %s\n' "$cert"
+            printf '    run with SVOTE_ANDROID_CA_INSTALL_MODE=prompt to open the Android CA installer\n'
+            ;;
+    esac
+}
+
+broadcast_config() {
+    local serial="$1"
+    local value="${2:-}"
+    local component="$ANDROID_APP_PACKAGE/co.electriccoin.zcash.configuration.internal.intent.IntentConfigurationReceiver"
+
+    if [ -n "$value" ]; then
+        adb -s "$serial" shell am broadcast \
+            -n "$component" \
+            --es key "voting_config_url" \
+            --es value "$value" >/dev/null
+    else
+        adb -s "$serial" shell am broadcast \
+            -n "$component" \
+            --es key "voting_config_url" >/dev/null
+    fi
+}
+
+apply_to_android_if_possible() {
+    local value="${1:-}"
+
+    if [ "${SVOTE_ANDROID_SKIP_ADB:-}" = "1" ]; then
+        return 0
+    fi
+    command -v adb >/dev/null 2>&1 || return 0
+
+    local serial
+    if ! serial="$(adb_serial)"; then
+        printf '  \033[33m-\033[0m Android app not updated: no single adb device found\n'
+        return 0
+    fi
+    if ! app_installed "$serial"; then
+        printf '  \033[33m-\033[0m Android app not updated: %s is not installed on %s\n' "$ANDROID_APP_PACKAGE" "$serial"
+        return 0
+    fi
+
+    if [ -n "$value" ]; then
+        maybe_prepare_android_ca "$serial"
+    fi
+
+    broadcast_config "$serial" "$value"
+    if [ -n "$value" ]; then
+        printf '  \033[32m✓\033[0m Android debug app uses local voting config on %s\n' "$serial"
+    else
+        printf '  \033[32m✓\033[0m Android debug app override cleared on %s\n' "$serial"
+    fi
+}
+
+ensure_voting_config_bin() {
+    local bin="${SVOTE_VOTING_CONFIG_BIN:-$DIR/.wiring/generated/bin/voting-config}"
+
+    if [ -x "$bin" ]; then
+        printf '%s\n' "$bin"
+        return 0
+    fi
+
+    if [ -n "${SVOTE_VOTING_CONFIG_BIN:-}" ]; then
+        printf '\033[31mSVOTE_VOTING_CONFIG_BIN is not executable: %s\033[0m\n' "$bin" >&2
+        return 1
+    fi
+
+    printf '  \033[33m-\033[0m building voting-config for local round signing\n' >&2
+    mkdir -p "$(dirname "$bin")"
+    (cd "$DIR/vote-sdk" && go build -o "$bin" ./cmd/voting-config)
+    [ -x "$bin" ] || {
+        printf '\033[31mFailed to build %s\033[0m\n' "$bin" >&2
+        return 1
+    }
+    printf '%s\n' "$bin"
+}
+
+local_round_entries() {
+    python3 -c '
+import base64
+import binascii
+import json
+import re
+import sys
+
+data = json.load(sys.stdin)
+if isinstance(data, dict):
+    rounds = data.get("rounds") or []
+elif isinstance(data, list):
+    rounds = data
+else:
+    rounds = []
+
+seen = set()
+
+def field(obj, *names):
+    for name in names:
+        value = obj.get(name)
+        if value:
+            return str(value).strip()
+    return ""
+
+for round_obj in rounds:
+    if not isinstance(round_obj, dict):
+        continue
+
+    round_id = field(round_obj, "vote_round_id", "voteRoundId", "round_id", "roundId")
+    ea_pk = field(round_obj, "ea_pk", "eaPk")
+    if not round_id or not ea_pk:
+        continue
+
+    if re.fullmatch(r"[0-9a-fA-F]{64}", round_id):
+        round_hex = round_id.lower()
+    else:
+        try:
+            round_id_bytes = base64.b64decode(round_id, validate=True)
+        except binascii.Error:
+            continue
+        if len(round_id_bytes) != 32:
+            continue
+        round_hex = round_id_bytes.hex()
+
+    try:
+        ea_pk_bytes = base64.b64decode(ea_pk, validate=True)
+    except binascii.Error:
+        continue
+    if len(ea_pk_bytes) != 32 or round_hex in seen:
+        continue
+
+    seen.add(round_hex)
+    print(f"{round_hex}\t{ea_pk}")
+'
+}
+
+merge_local_round_entries() {
+    local dynamic_path="$1"
+
+    if is_false "${SVOTE_ANDROID_SIGN_LOCAL_ROUNDS:-1}"; then
+        printf '  \033[33m-\033[0m local round signing disabled\n'
+        return 0
+    fi
+
+    command -v curl >/dev/null 2>&1 || {
+        printf '  \033[33m-\033[0m local round signing skipped: curl is not installed\n'
+        return 0
+    }
+    command -v python3 >/dev/null 2>&1 || {
+        printf '\033[31mpython3 is required for local round signing\033[0m\n'
+        exit 1
+    }
+
+    local query_url="${SVOTE_CONFIG_CHAIN_QUERY_URL:-http://localhost:$CHAIN_PORT}"
+    local rounds_json
+    if ! rounds_json="$(curl -sf "$query_url/shielded-vote/v1/rounds" 2>/dev/null)"; then
+        printf '  \033[33m-\033[0m local chain not ready; keeping existing signed round registry\n'
+        return 0
+    fi
+
+    local round_lines
+    round_lines="$(printf '%s' "$rounds_json" | local_round_entries)"
+    if [ -z "$round_lines" ]; then
+        printf '  \033[33m-\033[0m no local rounds with ea_pk found\n'
+        return 0
+    fi
+
+    local signer_id="${SVOTE_CONFIG_SIGNER_ID:-valar-test}"
+    local signer_key_file="${SVOTE_CONFIG_SIGNER_KEY_FILE:-$DIR/token-holder-voting-config/test/valar-test.seed.b64}"
+    [ -f "$signer_key_file" ] || {
+        printf '\033[31mMissing voting config signer key: %s\033[0m\n' "$signer_key_file"
+        exit 1
+    }
+
+    local bin
+    bin="$(ensure_voting_config_bin)"
+
+    local err_file count round_hex ea_pk
+    err_file="$(mktemp)"
+    count=0
+    while IFS=$'\t' read -r round_hex ea_pk; do
+        [ -n "$round_hex" ] || continue
+        if ! "$bin" sign \
+            --round-id "$round_hex" \
+            --ea-pk "$ea_pk" \
+            --signer-id "$signer_id" \
+            --privkey-file "$signer_key_file" \
+            --merge "$dynamic_path" >/dev/null 2>"$err_file"; then
+            printf '\033[31mFailed to sign local round %s\033[0m\n' "$round_hex" >&2
+            cat "$err_file" >&2
+            rm -f "$err_file"
+            exit 1
+        fi
+        count=$((count + 1))
+    done <<< "$round_lines"
+    rm -f "$err_file"
+
+    printf '  \033[32m✓\033[0m signed %s local round entr%s with %s\n' "$count" "$([ "$count" = "1" ] && printf 'y' || printf 'ies')" "$signer_id"
+}
+
+case "$MODE" in
+    local)
+        [ -f "$STATIC_SOURCE" ] || { printf '\033[31mMissing %s\033[0m\n' "$STATIC_SOURCE"; exit 1; }
+        [ -f "$DYNAMIC_SOURCE" ] || { printf '\033[31mMissing %s\033[0m\n' "$DYNAMIC_SOURCE"; exit 1; }
+        command -v jq >/dev/null 2>&1 || { printf '\033[31mjq is required\033[0m\n'; exit 1; }
+
+        mkdir -p "$CONFIG_DIR"
+
+        HOST="$(android_host)"
+        CONFIG_HOST="$(service_hostname config "$HOST")"
+        CHAIN_HOST="$(service_hostname chain "$HOST")"
+        PIR_HOST="$(service_hostname pir "$HOST")"
+        CONFIG_BASE_URL="${SVOTE_ANDROID_CONFIG_BASE_URL:-https://$CONFIG_HOST:$CONFIG_PORT}"
+        DYNAMIC_URL="${SVOTE_ANDROID_DYNAMIC_CONFIG_URL:-$CONFIG_BASE_URL/dynamic-voting-config.json}"
+        STATIC_URL="${SVOTE_ANDROID_STATIC_CONFIG_URL:-$CONFIG_BASE_URL/static-voting-config.json}"
+        VOTE_URL="${SVOTE_ANDROID_VOTE_URL:-https://$CHAIN_HOST:$CONFIG_PORT}"
+        PIR_URL="${SVOTE_ANDROID_PIR_URL:-https://$PIR_HOST:$CONFIG_PORT}"
+
+        jq --arg dynamic "$DYNAMIC_URL" \
+            '.dynamic_config_url = $dynamic' \
+            "$STATIC_SOURCE" > "$CONFIG_DIR/static-voting-config.json"
+
+        jq --arg vote "$VOTE_URL" \
+            --arg pir "$PIR_URL" \
+            '.vote_servers = [{"url": $vote, "label": "Local"}] |
+             .pir_endpoints = [{"url": $pir, "label": "Local"}]' \
+            "$DYNAMIC_SOURCE" > "$CONFIG_DIR/dynamic-voting-config.json"
+
+        merge_local_round_entries "$CONFIG_DIR/dynamic-voting-config.json"
+        write_caddyfile "$CONFIG_HOST" "$CHAIN_HOST" "$PIR_HOST"
+
+        printf '  \033[32m✓\033[0m generated Android voting config → %s\n' "$CONFIG_DIR"
+        printf '    static:  %s\n' "$STATIC_URL"
+        printf '    vote:    %s\n' "$VOTE_URL"
+        printf '    pir:     %s\n' "$PIR_URL"
+
+        mise run start:config
+        apply_to_android_if_possible "$STATIC_URL"
+        ;;
+    remote)
+        apply_to_android_if_possible ""
+        mise run stop:config >/dev/null 2>&1 || true
+        printf '\033[32mAndroid voting config set to remote.\033[0m Bundled CDN config will be used.\n'
+        ;;
+    *)
+        printf '\033[31mUnknown Android config mode: %s\033[0m\n' "$MODE"
+        echo "Use: mise run wire:android-config local|remote"
+        exit 1
+        ;;
+esac

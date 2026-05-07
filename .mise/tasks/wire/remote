@@ -81,6 +81,8 @@ if [ -f "$IOS_LOCAL_CFG" ]; then
         "zodl-ios/secant/Resources/voting-config-local.json"
 fi
 
+mise run wire:android-config remote
+
 # Stash LocalPackages so Package.swift falls back to the release binary.
 # Scoped to the active state so state switching can't restore a build that
 # was compiled against a different state's source.

@@ -20,6 +20,10 @@ apk_path="$(android_find_built_apk)"
 printf '\033[36mInstalling APK:\033[0m %s\n' "$apk_path"
 adb -s "$serial" install -r "$apk_path" >/dev/null
 
+printf '\033[36mWiring Android voting config:\033[0m %s\n' "${SVOTE_ANDROID_CONFIG:-local}"
+ANDROID_SERIAL="$serial" ANDROID_APP_PACKAGE="$ANDROID_APP_PACKAGE" \
+    mise run wire:android-config "${SVOTE_ANDROID_CONFIG:-local}"
+
 activity="$(adb -s "$serial" shell cmd package resolve-activity --brief "$ANDROID_APP_PACKAGE" | tail -n 1 | tr -d '\r')"
 [ -n "$activity" ] || android_fail "Could not resolve launcher activity for $ANDROID_APP_PACKAGE"
 

@@ -2,6 +2,7 @@
 rust = "stable"
 go = "1.24"
 node = "lts"
+caddy = "2.11.2"
 
 # Tasks auto-discover from .mise/tasks/ directory structure.
 # Short aliases (e.g. "start" → "start:all") are defined via #MISE alias in the scripts.
@@ -10,6 +11,7 @@ node = "lts"
 #
 #   start          Start everything (PIR + chain-hosted admin UI)
 #   start:chain    Build + init + start single-validator chain with admin UI
+#   start:config   Start local HTTPS voting config proxy
 #   start:nf       Start nullifier PIR server (CDN bootstrap by default)
 #   start:ios      Build xcframework for simulator + open Xcode
 #   reset:ios      Wipe Xcode/SwiftPM caches when package resolution wedges
@@ -17,9 +19,11 @@ node = "lts"
 #   android:run    Build, install, and launch the Android debug app
 #   stop           Stop all services
 #   stop:chain     Stop svoted (chain + admin UI)
+#   stop:config    Stop local HTTPS voting config proxy
 #   stop:nf        Stop only nf-server
 #   status         Show status of all services
 #   logs           Tail merged logs
+#   wire:android-config Switch Android debug voting config between local and remote
 #   wire:local     Apply local wiring (path deps)
 #   wire:remote    Remove local wiring (restore remote refs)
 #   wire:status    Show current wiring state

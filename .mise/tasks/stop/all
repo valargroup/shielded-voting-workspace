@@ -26,7 +26,7 @@ stop_pid() {
     return 1
 }
 
-for svc in chain nf; do
+for svc in chain nf config; do
     PID_FILE="$PID_DIR/$svc.pid"
     if [ -f "$PID_FILE" ] && pid_alive "$(cat "$PID_FILE")"; then
         if stop_pid "$(cat "$PID_FILE")"; then

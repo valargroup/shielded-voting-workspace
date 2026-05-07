@@ -68,7 +68,8 @@ fi
 VM_KEY=$(grep '^VM_PRIVKEYS=' "$ENV_FILE" 2>/dev/null | cut -d= -f2- | cut -d, -f1 | tr -d '[:space:]')
 UI_CHAIN_URL="${SVOTE_CHAIN_URL:-${VITE_CHAIN_URL:-}}"
 VITE_CHAIN_URL="$UI_CHAIN_URL" \
-VITE_VM_PRIVKEY="$VM_KEY" \
+VITE_LOCAL_STACK=1 \
+VITE_LOCAL_VM_PRIVKEY="$VM_KEY" \
 make -C "$DIR/vote-sdk" ui-build
 
 # ── Build + init chain ───────────────────────────────────────────
