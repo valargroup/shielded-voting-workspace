@@ -7,6 +7,11 @@ DIR="$(cd "$(dirname "$0")/../../.." && pwd)"
 PID_DIR="$DIR/.pids"
 PID_FILE="$PID_DIR/config.pid"
 PORT="${SVOTE_CONFIG_PORT:-8443}"
+LOG_FILE="$DIR/config-server.log"
+
+port_listener_pids() {
+    lsof -tnP -iTCP:"$PORT" -sTCP:LISTEN 2>/dev/null | sort -u || true
+}
 
 pid_alive() {
     lsof -p "$1" >/dev/null 2>&1
@@ -20,27 +25,53 @@ stop_pid() {
         sleep 0.25
     done
     kill -KILL "$pid" 2>/dev/null || true
+    for _ in $(seq 1 20); do
+        pid_alive "$pid" || return 0
+        sleep 0.25
+    done
+    return 1
 }
 
-PID=""
-if [ -f "$PID_FILE" ] && pid_alive "$(cat "$PID_FILE")"; then
-    PID="$(cat "$PID_FILE")"
-fi
-if [ -z "$PID" ]; then
-    PID="$(lsof -tnP -iTCP:"$PORT" -sTCP:LISTEN 2>/dev/null | head -1 || true)"
+pid_is_config_proxy() {
+    local pid="$1"
+
+    lsof -nP -a -p "$pid" 2>/dev/null |
+        awk -v dir="$DIR" -v log_file="$LOG_FILE" '
+            $1 == "caddy" && $4 == "cwd" && $NF == dir { cwd_seen = 1 }
+            $1 == "caddy" && $NF == log_file { log_seen = 1 }
+            END { exit !(cwd_seen && log_seen) }
+        '
+}
+
+PIDS=""
+TRACKED_PID=""
+[ -f "$PID_FILE" ] && TRACKED_PID="$(cat "$PID_FILE")"
+if [ -n "$TRACKED_PID" ] && pid_alive "$TRACKED_PID" && pid_is_config_proxy "$TRACKED_PID"; then
+    PIDS="$PIDS $TRACKED_PID"
 fi
 
-if [ -n "$PID" ]; then
-    stop_pid "$PID"
-    printf '\033[32mStopped config proxy\033[0m pid %s\n' "$PID"
+while read -r PORT_PID; do
+    [ -n "$PORT_PID" ] || continue
+    if pid_is_config_proxy "$PORT_PID"; then
+        case " $PIDS " in
+            *" $PORT_PID "*) ;;
+            *) PIDS="$PIDS $PORT_PID" ;;
+        esac
+    else
+        printf '\033[33mLeaving non-workspace listener on port %s running:\033[0m pid %s\n' "$PORT" "$PORT_PID"
+    fi
+done <<< "$(port_listener_pids)"
+
+if [ -n "$PIDS" ]; then
+    for PID in $PIDS; do
+        if ! stop_pid "$PID"; then
+            printf '\033[31mFailed to stop config proxy pid %s\033[0m\n' "$PID"
+            exit 1
+        fi
+        printf '\033[32mStopped config proxy\033[0m pid %s\n' "$PID"
+    done
 else
     echo "No config proxy found."
-fi
-
-PORT_PID="$(lsof -tnP -iTCP:"$PORT" -sTCP:LISTEN 2>/dev/null | head -1 || true)"
-if [ -n "$PORT_PID" ] && [ "$PORT_PID" != "$PID" ]; then
-    stop_pid "$PORT_PID"
-    printf '\033[32mStopped config listener\033[0m pid %s\n' "$PORT_PID"
 fi
 
 rm -f "$PID_FILE"

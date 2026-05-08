@@ -14,6 +14,21 @@ LOG_FILE="$DIR/config-server.log"
 
 mkdir -p "$PID_DIR" "$CONFIG_DIR" "$CADDY_DIR"
 
+port_listener_pids() {
+    lsof -tnP -iTCP:"$PORT" -sTCP:LISTEN 2>/dev/null | sort -u || true
+}
+
+pid_is_config_proxy() {
+    local pid="$1"
+
+    lsof -nP -a -p "$pid" 2>/dev/null |
+        awk -v dir="$DIR" -v log_file="$LOG_FILE" '
+            $1 == "caddy" && $4 == "cwd" && $NF == dir { cwd_seen = 1 }
+            $1 == "caddy" && $NF == log_file { log_seen = 1 }
+            END { exit !(cwd_seen && log_seen) }
+        '
+}
+
 if [ ! -f "$CONFIG_DIR/static-voting-config.json" ] ||
     [ ! -f "$CONFIG_DIR/dynamic-voting-config.json" ] ||
     [ ! -f "$CADDYFILE" ]; then
@@ -27,20 +42,41 @@ command -v caddy >/dev/null 2>&1 || {
     exit 1
 }
 
-LISTENING_PID="$(lsof -tnP -iTCP:"$PORT" -sTCP:LISTEN 2>/dev/null | head -1 || true)"
-if [ -n "$LISTENING_PID" ]; then
-    if [ -f "$PID_FILE" ] && [ "$(cat "$PID_FILE")" = "$LISTENING_PID" ]; then
-        kill "$LISTENING_PID" 2>/dev/null || true
-        for _ in $(seq 1 20); do
-            if ! lsof -tnP -iTCP:"$PORT" -sTCP:LISTEN >/dev/null 2>&1; then
-                break
-            fi
-            sleep 0.25
-        done
-    else
-        printf '\033[31mPort %s is already held by pid %s.\033[0m\n' "$PORT" "$LISTENING_PID"
+LISTENING_PIDS="$(port_listener_pids)"
+if [ -n "$LISTENING_PIDS" ]; then
+    OWNED_PIDS=""
+    OTHER_PIDS=""
+    TRACKED_PID=""
+    [ -f "$PID_FILE" ] && TRACKED_PID="$(cat "$PID_FILE")"
+
+    while read -r LISTENING_PID; do
+        [ -n "$LISTENING_PID" ] || continue
+        if pid_is_config_proxy "$LISTENING_PID"; then
+            OWNED_PIDS="$OWNED_PIDS $LISTENING_PID"
+        else
+            OTHER_PIDS="$OTHER_PIDS $LISTENING_PID"
+        fi
+    done <<< "$LISTENING_PIDS"
+
+    if [ -n "$OTHER_PIDS" ]; then
+        printf '\033[31mPort %s is already held by pid(s):%s.\033[0m\n' "$PORT" "$OTHER_PIDS"
         exit 1
     fi
+
+    PRIMARY_PID=""
+    for LISTENING_PID in $OWNED_PIDS; do
+        if [ -z "$PRIMARY_PID" ]; then
+            PRIMARY_PID="$LISTENING_PID"
+        fi
+        if [ "$LISTENING_PID" = "$TRACKED_PID" ]; then
+            PRIMARY_PID="$LISTENING_PID"
+            break
+        fi
+    done
+
+    echo "$PRIMARY_PID" > "$PID_FILE"
+    printf 'Config proxy already running on :%s (pid(s):%s) → config-server.log\n' "$PORT" "$OWNED_PIDS"
+    exit 0
 fi
 
 rm -f "$PID_FILE"
