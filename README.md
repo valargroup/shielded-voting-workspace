@@ -90,6 +90,21 @@ mise run android:emu      # boot the named Android emulator outside Android Stud
 mise run android:run      # build, install, and launch zcashmainnetFossDebug
 ```
 
+For the standard local emulator flow:
+
+```
+mise run start
+SVOTE_ANDROID_CA_INSTALL_MODE=root mise run android:run
+```
+
+`mise run start` brings up the local chain, PIR server, admin UI, and HTTPS voting-config proxy. `android:run` boots the emulator if needed, builds and installs the debug APK, regenerates local Android voting config by default, injects the `voting_config_url` debug override, and launches the app. `SVOTE_ANDROID_CA_INSTALL_MODE=root` installs the local Caddy CA on a rootable emulator so the app can fetch the local HTTPS config without the interactive certificate prompt.
+
+After publishing a local voting round, or any time the chain has new round data that should be signed into Android's dynamic config, regenerate and inject the config again:
+
+```
+SVOTE_ANDROID_CA_INSTALL_MODE=root mise run wire:android-config local
+```
+
 Defaults:
 
 - AVD: `Pixel_6_API_33_zodl`
@@ -97,7 +112,7 @@ Defaults:
 - Gradle task: `:app:assembleZcashmainnetFossDebug`
 - voting config: `local`
 
-`android:run` defaults to `SVOTE_ANDROID_CONFIG=local`: it generates local static/dynamic voting config, starts the Caddy-backed `start:config` HTTPS proxy, installs the debug app, and injects `voting_config_url` through the debug broadcast receiver. Emulator builds use Android's `10.0.2.2` host bridge, so the generated config points at `https://config.10-0-2-2.sslip.io:8443/static-voting-config.json`; the dynamic config points vote-sdk at `https://chain.10-0-2-2.sslip.io:8443` and PIR at `https://pir.10-0-2-2.sslip.io:8443`.
+`android:run` defaults to `SVOTE_ANDROID_CONFIG=local`: it generates local static/dynamic voting config, starts the Caddy-backed `start:config` HTTPS proxy, installs the debug app, and injects `voting_config_url` through the debug broadcast receiver. Emulator builds use Android's `10.0.2.2` host bridge, so the generated static config points at `https://config.10-0-2-2.sslip.io:8443/static-voting-config.json`; the dynamic config points vote-sdk at `http://10.0.2.2:1317` and PIR at `http://10.0.2.2:3000`.
 
 Caddy uses its local CA for emulator/LAN profiles. The debug Android app trusts user-installed CAs through `app/src/debug/res/xml/network_security_config.xml`; release builds are unaffected. Install the generated Caddy root CA once on the emulator/device if HTTPS requests fail:
 
